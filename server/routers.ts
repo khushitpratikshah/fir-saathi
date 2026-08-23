@@ -50,7 +50,7 @@ export const appRouter = router({
       ivBase64: z.string().min(8).max(100),
       ciphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
     })).mutation(async ({ input }) => { try { return await createVoiceComplaint(input); } catch (error) { return databaseError(error); } }),
-    verifyHash: publicProcedure.input(z.object({ publicId: publicIdSchema, evidenceId: z.number().int().positive(), actorLabel: z.string().trim().min(2).max(120) })).mutation(async ({ input }) => { try { return await verifyEvidenceHash(input); } catch (error) { return databaseError(error); } }),
+    verifyHash: publicProcedure.input(z.object({ publicId: publicIdSchema, evidenceId: z.string().uuid(), actorLabel: z.string().trim().min(2).max(120) })).mutation(async ({ input }) => { try { return await verifyEvidenceHash(input); } catch (error) { return databaseError(error); } }),
   }),
 });
 

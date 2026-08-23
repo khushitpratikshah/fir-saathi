@@ -1,21 +1,22 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { nanoid } from "nanoid";
 import { createHash } from "node:crypto";
-import { auditEvents, audioEvidence, bnsReferences, complaintFields, complaints, type InsertUser, users } from "../drizzle/schema";
-import { DEMO_BNS_REFERENCES, EMPTY_DRAFT, type StructuredDraft } from "../shared/firSaathi";
+import { nanoid } from "nanoid";
+import { type InsertUser, users } from "../drizzle/schema";
+import { DEMO_BNS_REFERENCES, EMPTY_DRAFT, type BnsSuggestion, type ComplaintStatus, type DraftField, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
 import { ENV } from "./_core/env";
-import { storageGetSignedUrl, storagePut } from "./storage";
-import { transcribeAudio } from "./_core/voiceTranscription";
 import { generateSafeDraft } from "./drafting";
+import { storageGetSignedUrl, storagePut } from "./storage";
+import { supabaseRequest } from "./supabase";
+import { transcribeAudio } from "./_core/voiceTranscription";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _authDb: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try { _db = drizzle(process.env.DATABASE_URL); } catch (error) { console.warn("[Database] Failed to connect:", error); _db = null; }
+  if (!_authDb && process.env.DATABASE_URL) {
+    try { _authDb = drizzle(process.env.DATABASE_URL); } catch (error) { console.warn("[Database] Failed to connect:", error); _authDb = null; }
   }
-  return _db;
+  return _authDb;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -37,254 +38,260 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
+  return (await db.select().from(users).where(eq(users.openId, openId)).limit(1))[0];
 }
 
-async function requireDb() {
-  const db = await getDb();
-  if (!db) throw new Error("The prototype database is not available.");
-  return db;
-}
-
-const demoGujaratiDraft: StructuredDraft = {
-  fields: [
-    { key: "incident", label: "Incident detail", value: "બે લોકોએ રોકી મારી ચેન લઈ લીધી", sourceQuote: "બે લોકોએ રોકી મારી ચેન લઈ લીધી", required: true, source: "source_statement", confidence: "high" },
-    { key: "witness", label: "Witness detail", value: "નજીકમાં દુકાનદાર હતા", sourceQuote: "નજીકમાં દુકાનદાર હતા", required: false, source: "source_statement", confidence: "medium" },
-  ],
-  missingDetails: ["Exact time of incident", "Approximate location", "Whether anyone was injured"],
-  followUpQuestions: ["ઘટના લગભગ કેટલા વાગ્યે બની હતી?", "આ ઘટના કયા રસ્તા અથવા જગ્યાએ બની હતી?", "શું કોઈને ઈજા થઈ હતી?"],
-  bnsSuggestions: [{ sectionCode: "BNS 304", title: "Snatching", confidence: "medium", rationale: "Demonstrative match based only on the cited property-taking account. Officer review required." }],
-  sourcePreservationNote: "The source statement is preserved as entered. This demonstrative draft does not replace, translate, or formalise it.",
+type SupabaseComplaint = {
+  id: string;
+  public_id: string;
+  language: SupportedLanguage;
+  status: ComplaintStatus;
+  consent_at: string | null;
+  citizen_confirmed_at: string | null;
+  source_transcript: string;
+  draft_json: StructuredDraft;
+  created_at: string;
+  updated_at: string;
 };
 
-const demoHindiDraft: StructuredDraft = {
-  fields: [
-    { key: "incident", label: "Incident detail", value: "मेरे पड़ोसी ने पिछले कुछ दिनों से मुझे बार-बार परेशान किया है", sourceQuote: "मेरे पड़ोसी ने पिछले कुछ दिनों से मुझे बार-बार परेशान किया है", required: true, source: "source_statement", confidence: "high" },
-  ],
-  missingDetails: ["Dates of reported incidents", "Specific actions described", "Any witnesses"],
-  followUpQuestions: ["यह घटना किन तारीखों को हुई?", "कृपया बताइए कि व्यक्ति ने क्या कहा या किया?", "क्या किसी और ने यह देखा या सुना?"],
-  bnsSuggestions: [{ sectionCode: "REVIEW", title: "Officer review required", confidence: "review", rationale: "No demonstration allow-list reference should be suggested from this limited account." }],
-  sourcePreservationNote: "The source statement is preserved as entered. This demonstrative draft does not replace, translate, or formalise it.",
+type SupabaseField = {
+  id: string;
+  complaint_id: string;
+  field_key: string;
+  label: string;
+  value: string;
+  source: DraftField["source"];
+  confidence: DraftField["confidence"];
+  verification_state: "unverified" | "citizen_confirmed" | "officer_verified";
+  updated_at: string;
 };
 
-export async function ensurePrototypeSeedData() {
-  const db = await requireDb();
-  await db.insert(bnsReferences).values([...DEMO_BNS_REFERENCES]).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
-  const existing = await db.select({ id: complaints.id }).from(complaints).limit(1);
-  if (existing.length) {
-    await alignLegacyDemoRecords(db);
-    return;
-  }
+type SupabaseEvidence = {
+  id: string;
+  complaint_id: string;
+  storage_key: string | null;
+  mime_type: string | null;
+  byte_size: number | null;
+  sha256: string | null;
+  encryption_metadata: { algorithm?: string; iv?: string; encrypted?: boolean } | null;
+  tamper_status: "not_checked" | "match" | "mismatch" | "unavailable";
+  created_at: string;
+};
 
-  const seeds: Array<{ publicId: string; language: "en" | "hi" | "gu"; status: "needs_citizen_confirmation" | "ready_for_review" | "returned"; sourceTranscript: string; draftJson: StructuredDraft }> = [
-    { publicId: "FS-2408", language: "gu" as const, status: "needs_citizen_confirmation" as const, sourceTranscript: "મને ગઈકાલે સાંજે રસ્તા પર બે લોકોએ રોકી મારી ચેન લઈ લીધી. નજીકમાં દુકાનદાર હતા.", draftJson: demoGujaratiDraft },
-    { publicId: "FS-2407", language: "hi" as const, status: "ready_for_review" as const, sourceTranscript: "मेरे पड़ोसी ने पिछले कुछ दिनों से मुझे बार-बार परेशान किया है।", draftJson: demoHindiDraft },
-    { publicId: "FS-2406", language: "en" as const, status: "returned" as const, sourceTranscript: "Someone damaged my parked vehicle outside my home last night.", draftJson: { ...EMPTY_DRAFT, missingDetails: ["Vehicle description", "Exact time", "Potential witness"], followUpQuestions: ["What vehicle was damaged?", "When did you first notice the damage?"], bnsSuggestions: [{ sectionCode: "REVIEW", title: "Officer review required", confidence: "review", rationale: "No demonstration reference fits the available statement." }] } },
-  ];
+type SupabaseAuditEvent = {
+  id: string;
+  complaint_id: string;
+  actor_label: string;
+  actor_role: "citizen" | "constable" | "system";
+  event_type: "created" | "transcribed" | "drafted" | "citizen_confirmed" | "field_corrected" | "returned" | "verified" | "evidence_checked";
+  field_key: string | null;
+  previous_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  created_at: string;
+};
 
-  for (const seed of seeds) {
-    const [complaint] = await db.insert(complaints).values({ ...seed, consentAt: new Date(), citizenConfirmedAt: seed.status === "ready_for_review" ? new Date() : null }).$returningId();
-    if (!complaint) continue;
-    if (seed.draftJson.fields.length) await db.insert(complaintFields).values(seed.draftJson.fields.map((field) => ({ complaintId: complaint.id, fieldKey: field.key, label: field.label, value: field.value, source: field.source, confidence: field.confidence, verificationState: seed.status === "ready_for_review" ? ("citizen_confirmed" as const) : ("unverified" as const) })));
-    await db.insert(auditEvents).values({ complaintId: complaint.id, actorLabel: "Prototype system", actorRole: "system", eventType: "created", newValue: "Synthetic demonstration record created" });
-  }
+type SupabaseBnsReference = {
+  id: string;
+  section_code: string;
+  title: string;
+  summary: string;
+  source_label: string;
+  verification_status: "demo_only" | "unverified" | "verified";
+  updated_at: string;
+};
+
+const complaintColumns = "id,public_id,language,status,consent_at,citizen_confirmed_at,source_transcript,draft_json,created_at,updated_at";
+
+function mapComplaint(row: SupabaseComplaint) {
+  return {
+    id: row.id,
+    publicId: row.public_id,
+    language: row.language,
+    status: row.status,
+    consentAt: row.consent_at ? new Date(row.consent_at) : null,
+    citizenConfirmedAt: row.citizen_confirmed_at ? new Date(row.citizen_confirmed_at) : null,
+    sourceTranscript: row.source_transcript,
+    draftJson: row.draft_json,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  };
 }
 
-async function alignLegacyDemoRecords(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
-  const legacyRecords = await db.select().from(complaints).where(and(eq(complaints.publicId, "FS-2407"), eq(complaints.status, "ready_for_review"))).limit(1);
-  const legacyRecord = legacyRecords[0];
-  if (!legacyRecord) return;
-  const legacyFields = await db.select().from(complaintFields).where(eq(complaintFields.complaintId, legacyRecord.id));
-  if (!legacyFields.some((field) => field.source === "assistant_draft")) return;
-  await db.update(complaints).set({ draftJson: demoHindiDraft }).where(eq(complaints.id, legacyRecord.id));
-  await db.delete(complaintFields).where(eq(complaintFields.complaintId, legacyRecord.id));
-  await db.insert(complaintFields).values(demoHindiDraft.fields.map((field) => ({
-    complaintId: legacyRecord.id,
-    fieldKey: field.key,
-    label: field.label,
-    value: field.value,
-    source: field.source,
-    confidence: field.confidence,
-    verificationState: "citizen_confirmed" as const,
-  })));
-  await db.insert(auditEvents).values({
-    complaintId: legacyRecord.id,
-    actorLabel: "Prototype migration",
-    actorRole: "system",
-    eventType: "drafted",
-    newValue: "Legacy synthetic summary fields replaced with verbatim source excerpts",
-  });
+function mapField(row: SupabaseField) {
+  return { id: row.id, complaintId: row.complaint_id, fieldKey: row.field_key, label: row.label, value: row.value, source: row.source, confidence: row.confidence, verificationState: row.verification_state, updatedAt: new Date(row.updated_at) };
+}
+
+function mapEvidence(row: SupabaseEvidence) {
+  return { id: row.id, complaintId: row.complaint_id, storageKey: row.storage_key, mimeType: row.mime_type, byteSize: row.byte_size, sha256: row.sha256, encryptionMetadata: row.encryption_metadata, tamperStatus: row.tamper_status, createdAt: new Date(row.created_at) };
+}
+
+function mapAuditEvent(row: SupabaseAuditEvent) {
+  return { id: row.id, complaintId: row.complaint_id, actorLabel: row.actor_label, actorRole: row.actor_role, eventType: row.event_type, fieldKey: row.field_key, previousValue: row.previous_value, newValue: row.new_value, reason: row.reason, createdAt: new Date(row.created_at) };
+}
+
+async function insertAuditEvent(event: Omit<SupabaseAuditEvent, "id" | "created_at">) {
+  await supabaseRequest("fir_saathi_audit_events", { method: "POST", prefer: "return=minimal", body: JSON.stringify(event) });
+}
+
+async function findComplaintRow(publicId: string) {
+  const rows = await supabaseRequest<SupabaseComplaint[]>(`fir_saathi_complaints?select=${complaintColumns}&public_id=eq.${encodeURIComponent(publicId)}&limit=1`);
+  return rows[0];
+}
+
+async function requireComplaint(publicId: string) {
+  const complaint = await findComplaintRow(publicId);
+  if (!complaint) throw new Error("Complaint not found.");
+  return complaint;
+}
+
+async function ensureBnsReferences() {
+  const references = DEMO_BNS_REFERENCES.map((reference) => ({
+    section_code: reference.sectionCode,
+    title: reference.title,
+    summary: reference.summary,
+    source_label: reference.sourceLabel,
+    verification_status: reference.verificationStatus,
+  }));
+  await supabaseRequest("fir_saathi_bns_references?on_conflict=section_code", { method: "POST", prefer: "resolution=merge-duplicates,return=minimal", body: JSON.stringify(references) });
 }
 
 export async function listComplaints() {
-  await ensurePrototypeSeedData();
-  const db = await requireDb();
-  return db.select().from(complaints).orderBy(desc(complaints.updatedAt));
+  await ensureBnsReferences();
+  const rows = await supabaseRequest<SupabaseComplaint[]>(`fir_saathi_complaints?select=${complaintColumns}&order=updated_at.desc`);
+  return rows.map(mapComplaint);
 }
 
 export async function getComplaintDetail(publicId: string) {
-  await ensurePrototypeSeedData();
-  const db = await requireDb();
-  const complaint = (await db.select().from(complaints).where(eq(complaints.publicId, publicId)).limit(1))[0];
+  await ensureBnsReferences();
+  const complaint = await findComplaintRow(publicId);
   if (!complaint) return undefined;
   const [fields, evidence, audit] = await Promise.all([
-    db.select().from(complaintFields).where(eq(complaintFields.complaintId, complaint.id)).orderBy(asc(complaintFields.id)),
-    db.select().from(audioEvidence).where(eq(audioEvidence.complaintId, complaint.id)).orderBy(desc(audioEvidence.createdAt)),
-    db.select().from(auditEvents).where(eq(auditEvents.complaintId, complaint.id)).orderBy(desc(auditEvents.createdAt)),
+    supabaseRequest<SupabaseField[]>(`fir_saathi_complaint_fields?select=*&complaint_id=eq.${complaint.id}&order=updated_at.asc`),
+    supabaseRequest<SupabaseEvidence[]>(`fir_saathi_audio_evidence?select=*&complaint_id=eq.${complaint.id}&order=created_at.desc`),
+    supabaseRequest<SupabaseAuditEvent[]>(`fir_saathi_audit_events?select=*&complaint_id=eq.${complaint.id}&order=created_at.desc`),
   ]);
-  return { complaint, fields, evidence, audit };
+  return { complaint: mapComplaint(complaint), fields: fields.map(mapField), evidence: evidence.map(mapEvidence), audit: audit.map(mapAuditEvent) };
 }
 
-export async function createComplaint(input: { language: "en" | "hi" | "gu"; sourceTranscript: string; consent: boolean }) {
-  const db = await requireDb();
+export async function createComplaint(input: { language: SupportedLanguage; sourceTranscript: string; consent: boolean }) {
   const publicId = `FS-${nanoid(7).toUpperCase()}`;
-  const [created] = await db.insert(complaints).values({ publicId, language: input.language, status: "needs_citizen_confirmation", consentAt: input.consent ? new Date() : null, sourceTranscript: input.sourceTranscript, draftJson: EMPTY_DRAFT }).$returningId();
-  if (!created) throw new Error("Unable to create the draft record.");
-  await db.insert(auditEvents).values({ complaintId: created.id, actorLabel: "Citizen", actorRole: "citizen", eventType: "created", newValue: "Citizen-created text draft" });
+  const created = await supabaseRequest<SupabaseComplaint[]>("fir_saathi_complaints", {
+    method: "POST",
+    prefer: "return=representation",
+    body: JSON.stringify({ public_id: publicId, language: input.language, status: "needs_citizen_confirmation", consent_at: input.consent ? new Date().toISOString() : null, source_transcript: input.sourceTranscript, draft_json: EMPTY_DRAFT }),
+  });
+  const complaint = created[0];
+  if (!complaint) throw new Error("Unable to create the draft record.");
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created text draft", reason: null });
   await draftComplaint(publicId);
   return { publicId };
 }
 
 export async function draftComplaint(publicId: string) {
-  const db = await requireDb();
-  const complaint = (await db.select().from(complaints).where(eq(complaints.publicId, publicId)).limit(1))[0];
-  if (!complaint) throw new Error("Complaint not found.");
+  const complaint = await requireComplaint(publicId);
   if (complaint.status === "verified") throw new Error("A verified prototype record cannot be redrafted.");
-  const draft = await generateSafeDraft({ language: complaint.language, sourceStatement: complaint.sourceTranscript });
-  await db.update(complaints).set({ draftJson: draft }).where(eq(complaints.id, complaint.id));
-  await db.delete(complaintFields).where(eq(complaintFields.complaintId, complaint.id));
-  if (draft.fields.length) await db.insert(complaintFields).values(draft.fields.map((field) => ({ complaintId: complaint.id, fieldKey: field.key, label: field.label, value: field.value, source: field.source, confidence: field.confidence, verificationState: "unverified" as const })));
-  await db.insert(auditEvents).values({ complaintId: complaint.id, actorLabel: "Prototype drafting service", actorRole: "system", eventType: "drafted", newValue: draft.fields.length ? "Schema-constrained draft generated from verbatim source excerpts" : "No source excerpts were safely extracted; review required" });
+  const draft = await generateSafeDraft({ language: complaint.language, sourceStatement: complaint.source_transcript });
+  await supabaseRequest(`fir_saathi_complaints?public_id=eq.${encodeURIComponent(publicId)}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ draft_json: draft }) });
+  await supabaseRequest(`fir_saathi_complaint_fields?complaint_id=eq.${complaint.id}`, { method: "DELETE", prefer: "return=minimal" });
+  if (draft.fields.length) {
+    await supabaseRequest("fir_saathi_complaint_fields", {
+      method: "POST",
+      prefer: "return=minimal",
+      body: JSON.stringify(draft.fields.map((field) => ({ complaint_id: complaint.id, field_key: field.key, label: field.label, value: field.value, source: field.source, confidence: field.confidence, verification_state: "unverified" }))),
+    });
+  }
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype drafting service", actor_role: "system", event_type: "drafted", field_key: null, previous_value: null, new_value: draft.fields.length ? "Schema-constrained draft generated from verbatim source excerpts" : "No source excerpts were safely extracted; review required", reason: null });
   return draft;
 }
 
-function hashBytes(bytes: Buffer) {
-  return createHash("sha256").update(bytes).digest("hex");
-}
+function hashBytes(bytes: Buffer) { return createHash("sha256").update(bytes).digest("hex"); }
 
-export async function createVoiceComplaint(input: {
-  language: "en" | "hi" | "gu";
-  mimeType: string;
-  rawAudioBase64: string;
-  encryptedAudioBase64: string;
-  ivBase64: string;
-  ciphertextSha256: string;
-}) {
+export async function createVoiceComplaint(input: { language: SupportedLanguage; mimeType: string; rawAudioBase64: string; encryptedAudioBase64: string; ivBase64: string; ciphertextSha256: string }) {
   const rawAudio = Buffer.from(input.rawAudioBase64, "base64");
   const encryptedAudio = Buffer.from(input.encryptedAudioBase64, "base64");
   if (!rawAudio.length || !encryptedAudio.length) throw new Error("The recorded audio could not be read.");
   if (rawAudio.length > 12 * 1024 * 1024) throw new Error("For this prototype, audio recordings must be 12 MB or smaller.");
   if (hashBytes(encryptedAudio) !== input.ciphertextSha256) throw new Error("The encrypted audio fingerprint did not match the uploaded record.");
-
-  const transcription = await transcribeAudio({
-    audioUrl: `data:${input.mimeType};base64,${input.rawAudioBase64}`,
-    language: input.language,
-    prompt: "Transcribe exactly what the citizen says. Do not translate, summarise, formalise, correct, or add facts.",
-  });
+  const transcription = await transcribeAudio({ audioUrl: `data:${input.mimeType};base64,${input.rawAudioBase64}`, language: input.language, prompt: "Transcribe exactly what the citizen says. Do not translate, summarise, formalise, correct, or add facts." });
   if ("error" in transcription) throw new Error(transcription.error);
   const sourceTranscript = transcription.text.trim();
   if (!sourceTranscript) throw new Error("The recording did not produce a usable source transcript. Please try again or use the text option.");
 
-  const db = await requireDb();
   const publicId = `FS-${nanoid(7).toUpperCase()}`;
-  const [created] = await db.insert(complaints).values({
-    publicId,
-    language: input.language,
-    status: "needs_citizen_confirmation",
-    consentAt: new Date(),
-    sourceTranscript,
-    draftJson: EMPTY_DRAFT,
-  }).$returningId();
-  if (!created) throw new Error("Unable to create the voice draft record.");
-
+  const created = await supabaseRequest<SupabaseComplaint[]>("fir_saathi_complaints", {
+    method: "POST",
+    prefer: "return=representation",
+    body: JSON.stringify({ public_id: publicId, language: input.language, status: "needs_citizen_confirmation", consent_at: new Date().toISOString(), source_transcript: sourceTranscript, draft_json: EMPTY_DRAFT }),
+  });
+  const complaint = created[0];
+  if (!complaint) throw new Error("Unable to create the voice draft record.");
   try {
     const evidence = await storagePut(`fir-saathi/evidence/${publicId}/recording.enc`, encryptedAudio, "application/octet-stream");
-    await db.insert(audioEvidence).values({
-      complaintId: created.id,
-      storageKey: evidence.key,
-      mimeType: input.mimeType,
-      byteSize: encryptedAudio.length,
-      sha256: input.ciphertextSha256,
-      encryptionMetadata: { algorithm: "AES-GCM", iv: input.ivBase64, encrypted: true },
-      tamperStatus: "match",
-    });
-    await db.insert(auditEvents).values([
-      { complaintId: created.id, actorLabel: "Citizen", actorRole: "citizen", eventType: "created", newValue: "Citizen-created voice draft" },
-      { complaintId: created.id, actorLabel: "Prototype transcription service", actorRole: "system", eventType: "transcribed", newValue: `Source transcript captured (${sourceTranscript.length} characters); raw audio not persisted` },
-      { complaintId: created.id, actorLabel: "Prototype evidence service", actorRole: "system", eventType: "evidence_checked", newValue: "Encrypted ciphertext hash matched at capture" },
+    await supabaseRequest("fir_saathi_audio_evidence", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, storage_key: evidence.key, mime_type: input.mimeType, byte_size: encryptedAudio.length, sha256: input.ciphertextSha256, encryption_metadata: { algorithm: "AES-GCM", iv: input.ivBase64, encrypted: true }, tamper_status: "match" }) });
+    await Promise.all([
+      insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created voice draft", reason: null }),
+      insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype transcription service", actor_role: "system", event_type: "transcribed", field_key: null, previous_value: null, new_value: `Source transcript captured (${sourceTranscript.length} characters); raw audio not persisted`, reason: null }),
+      insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype evidence service", actor_role: "system", event_type: "evidence_checked", field_key: null, previous_value: null, new_value: "Encrypted ciphertext hash matched at capture", reason: null }),
     ]);
     await draftComplaint(publicId);
   } catch (error) {
-    await db.delete(complaints).where(eq(complaints.id, created.id));
+    await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "DELETE", prefer: "return=minimal" });
     throw error;
   }
   return { publicId, transcript: sourceTranscript, detectedLanguage: transcription.language };
 }
 
-export async function verifyEvidenceHash(input: { publicId: string; evidenceId: number; actorLabel: string }) {
-  const db = await requireDb();
-  const complaint = (await db.select().from(complaints).where(eq(complaints.publicId, input.publicId)).limit(1))[0];
-  if (!complaint) throw new Error("Complaint not found.");
-  const evidence = (await db.select().from(audioEvidence).where(and(eq(audioEvidence.id, input.evidenceId), eq(audioEvidence.complaintId, complaint.id))).limit(1))[0];
-  if (!evidence?.storageKey || !evidence.sha256) throw new Error("Evidence storage metadata is unavailable for this record.");
-  const signedUrl = await storageGetSignedUrl(evidence.storageKey);
+export async function verifyEvidenceHash(input: { publicId: string; evidenceId: string; actorLabel: string }) {
+  const complaint = await requireComplaint(input.publicId);
+  const rows = await supabaseRequest<SupabaseEvidence[]>(`fir_saathi_audio_evidence?select=*&id=eq.${input.evidenceId}&complaint_id=eq.${complaint.id}&limit=1`);
+  const evidence = rows[0];
+  if (!evidence?.storage_key || !evidence.sha256) throw new Error("Evidence storage metadata is unavailable for this record.");
+  const signedUrl = await storageGetSignedUrl(evidence.storage_key);
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error("Stored encrypted evidence could not be retrieved for verification.");
-  const actualHash = hashBytes(Buffer.from(await response.arrayBuffer()));
-  const tamperStatus = actualHash === evidence.sha256 ? ("match" as const) : ("mismatch" as const);
-  await db.update(audioEvidence).set({ tamperStatus }).where(eq(audioEvidence.id, evidence.id));
-  await db.insert(auditEvents).values({
-    complaintId: complaint.id,
-    actorLabel: input.actorLabel,
-    actorRole: "constable",
-    eventType: "evidence_checked",
-    newValue: tamperStatus === "match" ? "Stored ciphertext SHA-256 matches the capture fingerprint" : "Stored ciphertext SHA-256 does not match the capture fingerprint",
-  });
+  const tamperStatus = hashBytes(Buffer.from(await response.arrayBuffer())) === evidence.sha256 ? "match" as const : "mismatch" as const;
+  await supabaseRequest(`fir_saathi_audio_evidence?id=eq.${evidence.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ tamper_status: tamperStatus }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: input.actorLabel, actor_role: "constable", event_type: "evidence_checked", field_key: null, previous_value: null, new_value: tamperStatus === "match" ? "Stored ciphertext SHA-256 matches the capture fingerprint" : "Stored ciphertext SHA-256 does not match the capture fingerprint", reason: null });
   return { tamperStatus };
 }
 
 export async function confirmComplaint(publicId: string) {
-  const db = await requireDb();
-  const complaint = (await db.select().from(complaints).where(eq(complaints.publicId, publicId)).limit(1))[0];
-  if (!complaint) throw new Error("Complaint not found.");
-  await db.update(complaints).set({ status: "ready_for_review", citizenConfirmedAt: new Date() }).where(eq(complaints.id, complaint.id));
-  await db.insert(auditEvents).values({ complaintId: complaint.id, actorLabel: "Citizen", actorRole: "citizen", eventType: "citizen_confirmed", newValue: "Explicit citizen confirmation" });
+  const complaint = await requireComplaint(publicId);
+  await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "ready_for_review", citizen_confirmed_at: new Date().toISOString() }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "citizen_confirmed", field_key: null, previous_value: null, new_value: "Explicit citizen confirmation", reason: null });
 }
 
 export async function correctComplaintField(input: { publicId: string; fieldKey: string; label: string; value: string; actorLabel: string; reason: string }) {
-  const db = await requireDb();
-  const complaint = (await db.select().from(complaints).where(eq(complaints.publicId, input.publicId)).limit(1))[0];
-  if (!complaint) throw new Error("Complaint not found.");
-  const existing = (await db.select().from(complaintFields).where(and(eq(complaintFields.complaintId, complaint.id), eq(complaintFields.fieldKey, input.fieldKey))).limit(1))[0];
+  const complaint = await requireComplaint(input.publicId);
+  const existingRows = await supabaseRequest<SupabaseField[]>(`fir_saathi_complaint_fields?select=*&complaint_id=eq.${complaint.id}&field_key=eq.${encodeURIComponent(input.fieldKey)}&limit=1`);
+  const existing = existingRows[0];
   if (existing) {
-    await db.update(complaintFields).set({ value: input.value, source: "officer_correction", confidence: "manual", verificationState: "unverified" }).where(eq(complaintFields.id, existing.id));
+    await supabaseRequest(`fir_saathi_complaint_fields?id=eq.${existing.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ value: input.value, source: "officer_correction", confidence: "manual", verification_state: "unverified" }) });
   } else {
-    await db.insert(complaintFields).values({ complaintId: complaint.id, fieldKey: input.fieldKey, label: input.label, value: input.value, source: "officer_correction", confidence: "manual", verificationState: "unverified" });
+    await supabaseRequest("fir_saathi_complaint_fields", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, field_key: input.fieldKey, label: input.label, value: input.value, source: "officer_correction", confidence: "manual", verification_state: "unverified" }) });
   }
-  await db.update(complaints).set({ status: "ready_for_review" }).where(eq(complaints.id, complaint.id));
-  await db.insert(auditEvents).values({ complaintId: complaint.id, actorLabel: input.actorLabel, actorRole: "constable", eventType: "field_corrected", fieldKey: input.fieldKey, previousValue: existing?.value ?? null, newValue: input.value, reason: input.reason });
+  await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "ready_for_review" }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: input.actorLabel, actor_role: "constable", event_type: "field_corrected", field_key: input.fieldKey, previous_value: existing?.value ?? null, new_value: input.value, reason: input.reason });
 }
 
 export async function returnComplaint(input: { publicId: string; actorLabel: string; reason: string }) {
-  const db = await requireDb();
-  const complaint = (await db.select().from(complaints).where(eq(complaints.publicId, input.publicId)).limit(1))[0];
-  if (!complaint) throw new Error("Complaint not found.");
-  await db.update(complaints).set({ status: "returned" }).where(eq(complaints.id, complaint.id));
-  await db.insert(auditEvents).values({ complaintId: complaint.id, actorLabel: input.actorLabel, actorRole: "constable", eventType: "returned", newValue: "Returned for citizen clarification", reason: input.reason });
+  const complaint = await requireComplaint(input.publicId);
+  await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "returned" }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: input.actorLabel, actor_role: "constable", event_type: "returned", field_key: null, previous_value: null, new_value: "Returned for citizen clarification", reason: input.reason });
 }
 
 export async function verifyComplaint(input: { publicId: string; actorLabel: string }) {
-  const db = await requireDb();
-  const complaint = (await db.select().from(complaints).where(eq(complaints.publicId, input.publicId)).limit(1))[0];
-  if (!complaint) throw new Error("Complaint not found.");
-  await db.update(complaints).set({ status: "verified" }).where(eq(complaints.id, complaint.id));
-  await db.update(complaintFields).set({ verificationState: "officer_verified" }).where(eq(complaintFields.complaintId, complaint.id));
-  await db.insert(auditEvents).values({ complaintId: complaint.id, actorLabel: input.actorLabel, actorRole: "constable", eventType: "verified", newValue: "Prototype record verified; no FIR registered" });
+  const complaint = await requireComplaint(input.publicId);
+  await Promise.all([
+    supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "verified" }) }),
+    supabaseRequest(`fir_saathi_complaint_fields?complaint_id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ verification_state: "officer_verified" }) }),
+  ]);
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: input.actorLabel, actor_role: "constable", event_type: "verified", field_key: null, previous_value: null, new_value: "Prototype record verified; no FIR registered", reason: null });
 }
 
 export async function listDemoBnsReferences() {
-  await ensurePrototypeSeedData();
-  const db = await requireDb();
-  return db.select().from(bnsReferences).orderBy(asc(bnsReferences.sectionCode));
+  await ensureBnsReferences();
+  const rows = await supabaseRequest<SupabaseBnsReference[]>("fir_saathi_bns_references?select=*&order=section_code.asc");
+  return rows.map((row: SupabaseBnsReference) => ({ id: row.id, sectionCode: row.section_code, title: row.title, summary: row.summary, sourceLabel: row.source_label, verificationStatus: row.verification_status, updatedAt: new Date(row.updated_at) }));
 }

@@ -126,8 +126,7 @@ export async function generateSafeDraft(input: { language: SupportedLanguage; so
     const allowedReferences = DEMO_BNS_REFERENCES.map((reference) => `${reference.sectionCode}: ${reference.title}`).join("; ");
     const response = await invokeLLM({
       model,
-      temperature: 0,
-      maxTokens: 1_800,
+      maxCompletionTokens: 1_800,
       messages: [
         {
           role: "system",
@@ -150,7 +149,8 @@ export async function generateSafeDraft(input: { language: SupportedLanguage; so
       bnsSuggestions: normaliseBnsSuggestions(parsed.bnsSuggestions),
       sourcePreservationNote: SAFE_NOTE,
     };
-  } catch {
+  } catch (error) {
+    console.warn("[FIR Saathi drafting] Falling back to officer review:", error instanceof Error ? error.message : error);
     return safeFallback();
   }
 }

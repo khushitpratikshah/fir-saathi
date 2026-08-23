@@ -15,4 +15,11 @@
 - [x] Render evidence metadata, tamper-check status, append-only audit entries, verification states, and privacy/legal limitations.
 - [x] Add automated tests for source-excerpt validation, BNS allow-list enforcement, safe AI fallback behavior, and authentication logout behavior.
 - [x] Verify desktop and mobile UI, keyboard access, reduced motion, loading/empty/error states, and production build.
-- [ ] Create the final project checkpoint and provide the completed project handover.
+- [x] Create the final project checkpoint and provide the completed project handover.
+- [x] Audit Supabase-backed text intake, constrained drafting, citizen confirmation, constable correction, return, verification, audit persistence, and browser review rendering; live microphone hardware remains the browser-dependent boundary.
+- [x] Repair the live drafting token parameter, Supabase minimal-response handling, UUID evidence contract, and functional queue search/filter controls.
+- [x] Add Supabase credential coverage and a synthetic end-to-end workflow audit with an honest UI-versus-functional implementation status.
+- [x] Inspect the connected Supabase project and document the target complaint-workflow schema mapping.
+- [x] Provision the complaint, field, evidence, audit, and demonstrative BNS tables in Supabase.
+- [x] Replace the server persistence layer with Supabase-backed queries and mutations.
+- [x] Re-run the functional audit against Supabase and report verified results.
