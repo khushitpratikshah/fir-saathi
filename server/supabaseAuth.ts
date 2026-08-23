@@ -8,7 +8,7 @@ export type PortableUser = {
   name: string | null;
   email: string | null;
   loginMethod: "supabase";
-  role: "user" | "admin";
+  role: "citizen" | "constable" | "admin";
 };
 
 type AuthIdentity = { id: string; email?: string | null; user_metadata?: { display_name?: string | null; full_name?: string | null } };
@@ -37,11 +37,13 @@ export async function getPortableUser(accessToken: string | undefined): Promise<
   const identity = await requestSupabase<AuthIdentity>("/auth/v1/user", { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!identity?.id) return null;
   const { url } = config();
-  const profile = await requestSupabase<Array<{ role: "citizen" | "constable"; display_name: string | null }>>(`/rest/v1/fir_saathi_profiles?id=eq.${encodeURIComponent(identity.id)}&select=role,display_name`, { headers: { Authorization: `Bearer ${config().key}` } });
+  const profile = await requestSupabase<Array<{ role: "citizen" | "constable" | "administrator"; display_name: string | null }>>(`/rest/v1/fir_saathi_profiles?id=eq.${encodeURIComponent(identity.id)}&select=role,display_name`, { headers: { Authorization: `Bearer ${config().key}` } });
   const current = profile?.[0];
   if (!current) return null;
   const suppliedName = identity.user_metadata?.display_name || identity.user_metadata?.full_name || null;
-  return { id: identity.id, email: identity.email ?? null, name: current.display_name || suppliedName, loginMethod: "supabase", role: current.role === "constable" ? "admin" : "user" };
+  const bootstrapEmail = process.env.FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  const isBootstrapAdministrator = Boolean(bootstrapEmail && identity.email?.toLowerCase() === bootstrapEmail);
+  return { id: identity.id, email: identity.email ?? null, name: current.display_name || suppliedName, loginMethod: "supabase", role: isBootstrapAdministrator || current.role === "administrator" ? "admin" : current.role === "constable" ? "constable" : "citizen" };
 }
 
 export function storePortableSession(res: Response, session: AuthSession) {

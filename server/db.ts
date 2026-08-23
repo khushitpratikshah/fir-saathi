@@ -1,45 +1,10 @@
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
 import { nanoid } from "nanoid";
-import { type InsertUser, users } from "../drizzle/schema";
 import { DEMO_BNS_REFERENCES, EMPTY_DRAFT, type BnsSuggestion, type ComplaintStatus, type DraftField, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
-import { ENV } from "./_core/env";
 import { generateSafeDraft } from "./drafting";
 import { groqTranscribe } from "./groqProvider";
 import { portableEvidencePut, portableEvidenceSignedUrl } from "./portableStorage";
 import { supabaseRequest } from "./supabase";
-
-let _authDb: ReturnType<typeof drizzle> | null = null;
-
-export async function getDb() {
-  if (!_authDb && process.env.DATABASE_URL) {
-    try { _authDb = drizzle(process.env.DATABASE_URL); } catch (error) { console.warn("[Database] Failed to connect:", error); _authDb = null; }
-  }
-  return _authDb;
-}
-
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
-  if (!db) return;
-  const values: InsertUser = { openId: user.openId };
-  const updateSet: Record<string, unknown> = {};
-  (["name", "email", "loginMethod"] as const).forEach((field) => {
-    if (user[field] !== undefined) { values[field] = user[field] ?? null; updateSet[field] = user[field] ?? null; }
-  });
-  values.role = user.role ?? (user.openId === ENV.ownerOpenId ? "admin" : "user");
-  updateSet.role = values.role;
-  values.lastSignedIn = user.lastSignedIn ?? new Date();
-  updateSet.lastSignedIn = values.lastSignedIn;
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-}
-
-export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  return (await db.select().from(users).where(eq(users.openId, openId)).limit(1))[0];
-}
 
 type SupabaseComplaint = {
   id: string;
@@ -98,6 +63,15 @@ type SupabaseBnsReference = {
   summary: string;
   source_label: string;
   verification_status: "demo_only" | "unverified" | "verified";
+  updated_at: string;
+};
+
+type SupabaseProfile = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: "citizen" | "constable" | "administrator";
+  created_at: string;
   updated_at: string;
 };
 
@@ -293,4 +267,13 @@ export async function listDemoBnsReferences() {
   await ensureBnsReferences();
   const rows = await supabaseRequest<SupabaseBnsReference[]>("fir_saathi_bns_references?select=*&order=section_code.asc");
   return rows.map((row: SupabaseBnsReference) => ({ id: row.id, sectionCode: row.section_code, title: row.title, summary: row.summary, sourceLabel: row.source_label, verificationStatus: row.verification_status, updatedAt: new Date(row.updated_at) }));
+}
+
+export async function listRoleProfiles() {
+  const rows = await supabaseRequest<SupabaseProfile[]>("fir_saathi_profiles?select=id,email,display_name,role,created_at,updated_at&order=created_at.desc");
+  return rows.map((profile) => ({ id: profile.id, email: profile.email, displayName: profile.display_name, role: profile.role, createdAt: new Date(profile.created_at), updatedAt: new Date(profile.updated_at) }));
+}
+
+export async function assignProfileRole(profileId: string, role: "citizen" | "constable") {
+  await supabaseRequest(`fir_saathi_profiles?id=eq.${encodeURIComponent(profileId)}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ role, updated_at: new Date().toISOString() }) });
 }

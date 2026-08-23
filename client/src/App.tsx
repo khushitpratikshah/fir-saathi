@@ -9,9 +9,11 @@ import ComplaintReview from "./pages/ComplaintReview";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import OfficerQueue from "./pages/OfficerQueue";
+import AdminDashboard from "./pages/AdminDashboard";
+import ResetPassword from "./pages/ResetPassword";
 
 function Router() {
-  return <Switch><Route path="/" component={Home} /><Route path="/intake" component={CitizenIntake} /><Route path="/confirm/:publicId" component={CitizenConfirmation} /><Route path="/officer" component={OfficerQueue} /><Route path="/officer/:publicId" component={ComplaintReview} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>;
+  return <Switch><Route path="/" component={Home} /><Route path="/intake" component={CitizenIntake} /><Route path="/confirm/:publicId" component={CitizenConfirmation} /><Route path="/officer" component={OfficerQueue} /><Route path="/officer/:publicId" component={ComplaintReview} /><Route path="/admin" component={AdminDashboard} /><Route path="/reset-password" component={ResetPassword} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>;
 }
 
 export default function App() {

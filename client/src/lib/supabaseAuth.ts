@@ -23,3 +23,15 @@ export function signInWithSupabase(email: string, password: string) {
 export function signUpWithSupabase(email: string, password: string, displayName: string) {
   return authRequest("/auth/v1/signup", { email, password, data: { display_name: displayName } });
 }
+
+export async function requestPasswordRecovery(email: string) {
+  const { url, key } = getConfig();
+  const response = await fetch(`${url}/auth/v1/recover`, { method: "POST", headers: { apikey: key, "Content-Type": "application/json" }, body: JSON.stringify({ email, redirect_to: `${window.location.origin}/reset-password` }) });
+  if (!response.ok) throw new Error("Supabase could not send the password reset email.");
+}
+
+export async function updatePasswordFromRecovery(accessToken: string, password: string) {
+  const { url, key } = getConfig();
+  const response = await fetch(`${url}/auth/v1/user`, { method: "PUT", headers: { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+  if (!response.ok) throw new Error("The password-reset link is invalid or has expired. Request a new one.");
+}

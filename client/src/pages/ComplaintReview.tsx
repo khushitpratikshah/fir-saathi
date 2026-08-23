@@ -19,7 +19,7 @@ function ComplaintReviewContent({ dark }: { dark: boolean }) {
   const [, params] = useRoute("/officer/:publicId");
   const publicId = params?.publicId ?? "";
   const { user } = useOfficerAccess();
-  const detail = trpc.complaints.review.useQuery({ publicId }, { enabled: Boolean(publicId && user?.role === "admin") });
+  const detail = trpc.complaints.review.useQuery({ publicId }, { enabled: Boolean(publicId && user?.role !== "citizen") });
   const utils = trpc.useUtils();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editedValue, setEditedValue] = useState("");

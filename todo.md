@@ -55,3 +55,10 @@
 - [x] Validate the portable sign-in UI, sign-out cookie handling, citizen access, Supabase Auth connectivity, and constable role enforcement.
 - [x] Create and push the completed project to a private GitHub repository.
 - [x] Save a final checkpoint after the portable-auth migration and GitHub publication.
+- [x] Audit and remove all remaining active Manus dependencies from the self-hosted runtime path.
+- [x] Create a Supabase-backed administrator role-management dashboard for approved constable accounts.
+- [x] Add a secure bootstrap path for the first administrator without allowing ordinary users to self-promote.
+- [x] Improve account recovery, sign-out, and constable workspace navigation for a production-like self-hosted prototype.
+- [x] Update deployment documentation, including Supabase Auth Site URL and custom-domain redirect configuration.
+- [x] Validate the administrator dashboard, role assignment, self-hosted build, and responsive journeys.
+- [x] Push the completed self-hosted administrator update to the private GitHub repository and save a checkpoint.

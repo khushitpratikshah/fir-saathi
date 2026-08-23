@@ -1,0 +1,44 @@
+create table if not exists public.fir_saathi_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  display_name text,
+  role text not null default 'citizen' check (role in ('citizen', 'constable', 'administrator')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.fir_saathi_profiles enable row level security;
+
+drop policy if exists "profiles_select_own" on public.fir_saathi_profiles;
+create policy "profiles_select_own"
+  on public.fir_saathi_profiles for select to authenticated
+  using (id = auth.uid());
+
+create or replace function public.handle_new_fir_saathi_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.fir_saathi_profiles (id, email, display_name, role)
+  values (
+    new.id,
+    coalesce(new.email, ''),
+    coalesce(new.raw_user_meta_data ->> 'display_name', split_part(coalesce(new.email, ''), '@', 1)),
+    'citizen'
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    display_name = coalesce(excluded.display_name, public.fir_saathi_profiles.display_name),
+    updated_at = now();
+  return new;
+end;
+$$;
+
+revoke execute on function public.handle_new_fir_saathi_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_fir_saathi on auth.users;
+create trigger on_auth_user_created_fir_saathi
+  after insert on auth.users
+  for each row execute procedure public.handle_new_fir_saathi_user();

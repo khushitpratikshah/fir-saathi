@@ -18,7 +18,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     email: "sample@example.com",
     name: "Sample User",
     loginMethod: "supabase",
-    role: "user",
+    role: "citizen",
   };
 
   const ctx: TrpcContext = {

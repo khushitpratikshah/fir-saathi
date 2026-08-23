@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { ClipboardPenLine, Moon, ShieldCheck, Sun } from "lucide-react";
 import type { PropsWithChildren } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 type ShellProps = PropsWithChildren<{
   dark?: boolean;
@@ -16,6 +17,8 @@ const navItems = [
 
 export default function FirSaathiShell({ children, dark = false, compact = false, showcase = false, officerTheme }: ShellProps) {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
+  const items = user?.role === "admin" ? [...navItems, { href: "/admin", label: "Admin" }] : navItems;
 
   return (
     <div className={dark ? "min-h-screen bg-[#071525] text-white" : "min-h-screen paper-noise text-[#102643]"}>
@@ -30,7 +33,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
           </Link>
 
           <nav aria-label="Primary navigation" className="hidden items-center gap-1 sm:flex">
-            {navItems.map((item) => {
+            {items.map((item) => {
               const active = location === item.href || location.startsWith(`${item.href}/`);
               return (
                 <Link
@@ -45,6 +48,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
           </nav>
 
           <div className="flex items-center gap-2">
+          {user && <button type="button" onClick={() => void logout()} className={`focus-ring hidden rounded-full border px-3 py-1.5 text-xs font-bold sm:inline-flex ${dark ? "border-white/10 text-slate-200" : "border-[#102643]/10 text-slate-600"}`}>Sign out</button>}
           {officerTheme && <button type="button" onClick={officerTheme.toggle} className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${dark ? "border-white/10 bg-white/5 text-slate-200" : "border-[#102643]/10 bg-white/70 text-slate-600"}`} aria-label="Toggle constable workspace theme">{officerTheme.dark ? <Sun className="h-3.5 w-3.5 text-[#f48a51]" /> : <Moon className="h-3.5 w-3.5 text-[#102643]" />}{officerTheme.dark ? "Light" : "Dark"}</button>}
           <div className={`hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold md:flex ${dark ? "border-white/10 bg-white/5 text-slate-300" : "border-[#102643]/10 bg-white/70 text-slate-600"}`}>
             <ShieldCheck className="h-3.5 w-3.5 text-[#c64e19]" aria-hidden="true" />
