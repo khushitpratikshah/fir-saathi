@@ -67,7 +67,7 @@
 - [x] Create a static GitHub Pages showcase build that cannot expose server secrets or impersonate the secure intake workflow.
 - [x] Document GitHub Pages limitations and deployment steps alongside the self-hosted full-stack option.
 - [x] Validate responsive authentication feedback and the static showcase build, then push and checkpoint the update.
-- [ ] Preserve the supplied FIR Saathi brand logo as a web-ready asset and integrate it across the application and static showcase.
-- [ ] Diagnose the failed GitHub Pages workflow from the repository run logs.
-- [ ] Repair the Pages workflow or repository configuration required to publish the static showcase.
-- [ ] Validate the logo treatment, static artifact, and successful GitHub deployment path, then push and checkpoint the repair.
+- [x] Preserve the supplied FIR Saathi brand logo as a web-ready asset and integrate it across the application and static showcase.
+- [x] Diagnose the failed GitHub Pages workflow from the repository run logs.
+- [x] Repair the Pages workflow or repository configuration required to publish the static showcase.
+- [x] Validate the logo treatment, static artifact, and successful GitHub deployment path, then push and checkpoint the repair.
