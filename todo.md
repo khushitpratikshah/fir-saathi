@@ -23,3 +23,9 @@
 - [x] Provision the complaint, field, evidence, audit, and demonstrative BNS tables in Supabase.
 - [x] Replace the server persistence layer with Supabase-backed queries and mutations.
 - [x] Re-run the functional audit against Supabase and report verified results.
+- [x] Diagnose and fix the voice intake flow that remains stuck while preparing a transcript.
+- [x] Add timeout, cancellation, and recovery handling for browser audio processing and server transcription.
+- [x] Remove Manus built-in AI dependencies from the server-side drafting and transcription paths.
+- [x] Add a portable Groq drafting provider with schema-constrained output and explicit server-only configuration.
+- [x] Add a portable OpenAI-compatible transcription provider with exact-language prompting and bounded requests.
+- [x] Document environment variables and self-hosting requirements for external deployment.

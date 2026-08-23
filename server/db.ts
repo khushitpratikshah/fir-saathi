@@ -6,9 +6,9 @@ import { type InsertUser, users } from "../drizzle/schema";
 import { DEMO_BNS_REFERENCES, EMPTY_DRAFT, type BnsSuggestion, type ComplaintStatus, type DraftField, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
 import { ENV } from "./_core/env";
 import { generateSafeDraft } from "./drafting";
-import { storageGetSignedUrl, storagePut } from "./storage";
+import { groqTranscribe } from "./groqProvider";
+import { portableEvidencePut, portableEvidenceSignedUrl } from "./portableStorage";
 import { supabaseRequest } from "./supabase";
-import { transcribeAudio } from "./_core/voiceTranscription";
 
 let _authDb: ReturnType<typeof drizzle> | null = null;
 
@@ -213,8 +213,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
   if (!rawAudio.length || !encryptedAudio.length) throw new Error("The recorded audio could not be read.");
   if (rawAudio.length > 12 * 1024 * 1024) throw new Error("For this prototype, audio recordings must be 12 MB or smaller.");
   if (hashBytes(encryptedAudio) !== input.ciphertextSha256) throw new Error("The encrypted audio fingerprint did not match the uploaded record.");
-  const transcription = await transcribeAudio({ audioUrl: `data:${input.mimeType};base64,${input.rawAudioBase64}`, language: input.language, prompt: "Transcribe exactly what the citizen says. Do not translate, summarise, formalise, correct, or add facts." });
-  if ("error" in transcription) throw new Error(transcription.error);
+  const transcription = await groqTranscribe({ audio: rawAudio, mimeType: input.mimeType, language: input.language, prompt: "Transcribe exactly what the citizen says. Do not translate, summarise, formalise, correct, or add facts." });
   const sourceTranscript = transcription.text.trim();
   if (!sourceTranscript) throw new Error("The recording did not produce a usable source transcript. Please try again or use the text option.");
 
@@ -227,7 +226,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
   const complaint = created[0];
   if (!complaint) throw new Error("Unable to create the voice draft record.");
   try {
-    const evidence = await storagePut(`fir-saathi/evidence/${publicId}/recording.enc`, encryptedAudio, "application/octet-stream");
+    const evidence = await portableEvidencePut(publicId, encryptedAudio);
     await supabaseRequest("fir_saathi_audio_evidence", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, storage_key: evidence.key, mime_type: input.mimeType, byte_size: encryptedAudio.length, sha256: input.ciphertextSha256, encryption_metadata: { algorithm: "AES-GCM", iv: input.ivBase64, encrypted: true }, tamper_status: "match" }) });
     await Promise.all([
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created voice draft", reason: null }),
@@ -247,7 +246,7 @@ export async function verifyEvidenceHash(input: { publicId: string; evidenceId: 
   const rows = await supabaseRequest<SupabaseEvidence[]>(`fir_saathi_audio_evidence?select=*&id=eq.${input.evidenceId}&complaint_id=eq.${complaint.id}&limit=1`);
   const evidence = rows[0];
   if (!evidence?.storage_key || !evidence.sha256) throw new Error("Evidence storage metadata is unavailable for this record.");
-  const signedUrl = await storageGetSignedUrl(evidence.storage_key);
+  const signedUrl = await portableEvidenceSignedUrl(evidence.storage_key);
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error("Stored encrypted evidence could not be retrieved for verification.");
   const tamperStatus = hashBytes(Buffer.from(await response.arrayBuffer())) === evidence.sha256 ? "match" as const : "mismatch" as const;
