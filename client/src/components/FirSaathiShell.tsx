@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { ClipboardPenLine, Moon, ShieldCheck, Sun } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import FirSaathiMark from "@/components/FirSaathiMark";
 
 type ShellProps = PropsWithChildren<{
   dark?: boolean;
@@ -25,7 +26,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
       <header className={`relative z-10 border-b ${dark ? "border-white/10 bg-[#071525]/80" : "border-[#102643]/10 bg-[#fbfaf6]/80"} backdrop-blur-xl`}>
         <div className={`mx-auto flex h-[72px] items-center justify-between px-5 sm:px-8 ${compact ? "max-w-6xl" : "max-w-7xl"}`}>
           <Link href="/" className="focus-ring inline-flex items-center gap-3 rounded-lg">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#c64e19] text-xs font-bold tracking-[-0.05em] text-white shadow-[0_7px_18px_rgba(198,78,25,0.28)]">FS</span>
+            <span className={`grid h-9 w-9 place-items-center rounded-xl p-1.5 shadow-[0_7px_18px_rgba(198,78,25,0.18)] ${dark ? "bg-white/95" : "bg-[#fff7f1]"}`}><FirSaathiMark className="h-full w-full" /></span>
             <span className="leading-tight">
               <span className="block text-sm font-bold tracking-[-0.02em]">FIR Saathi</span>
               <span className={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>{showcase ? "Intel AI Impact Fest" : "Citizen complaint workspace"}</span>
