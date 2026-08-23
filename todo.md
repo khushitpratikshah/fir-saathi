@@ -41,4 +41,17 @@
 - [x] Preserve and strengthen the live data-backed intake, AI-processing, confirmation, correction, audit, and verification flows.
 - [x] Add immersive but accessible motion to real application transitions, source capture, AI processing, and review states.
 - [x] Validate the separated landing and real-app journeys on desktop and mobile.
-- [ ] Save the checkpoint for the separated promotional landing and immersive real-app refinement.
+- [x] Save the checkpoint for the separated promotional landing and immersive real-app refinement.
+- [x] Define and implement role-aware access for citizen and constable workspaces without weakening the existing complaint flow.
+- [x] Add a real complaint case-status timeline sourced from lifecycle audit events and status changes.
+- [x] Add an optional persisted dark theme for constable review routes while retaining the citizen workspace visual language.
+- [x] Compile, test, and browser-validate officer access, timeline rendering, and theme persistence before finalising this enhancement.
+- [x] Validate role behavior, timeline accuracy, dark-workspace accessibility, and responsive application journeys.
+- [x] Save a checkpoint for the roles, timeline, and dark-workspace enhancement.
+- [ ] Inspect Supabase Auth configuration and select a portable email sign-in flow.
+- [ ] Replace Manus account/session usage with Supabase Auth and server-verified role profiles.
+- [ ] Preserve server-side constable authorization, timeline access, and citizen public workflow under the portable session model.
+- [ ] Update the self-hosting documentation and automated tests for Supabase-based authentication.
+- [ ] Validate signup/sign-in, sign-out, citizen access, and constable role enforcement in the browser.
+- [ ] Create and push the completed project to a private GitHub repository.
+- [ ] Save a final checkpoint after the portable-auth migration and GitHub publication.

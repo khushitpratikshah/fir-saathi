@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { ClipboardPenLine, ShieldCheck } from "lucide-react";
+import { ClipboardPenLine, Moon, ShieldCheck, Sun } from "lucide-react";
 import type { PropsWithChildren } from "react";
 
 type ShellProps = PropsWithChildren<{
   dark?: boolean;
   compact?: boolean;
   showcase?: boolean;
+  officerTheme?: { dark: boolean; toggle: () => void };
 }>;
 
 const navItems = [
@@ -13,7 +14,7 @@ const navItems = [
   { href: "/officer", label: "Constable review" },
 ];
 
-export default function FirSaathiShell({ children, dark = false, compact = false, showcase = false }: ShellProps) {
+export default function FirSaathiShell({ children, dark = false, compact = false, showcase = false, officerTheme }: ShellProps) {
   const [location] = useLocation();
 
   return (
@@ -43,9 +44,12 @@ export default function FirSaathiShell({ children, dark = false, compact = false
             })}
           </nav>
 
+          <div className="flex items-center gap-2">
+          {officerTheme && <button type="button" onClick={officerTheme.toggle} className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${dark ? "border-white/10 bg-white/5 text-slate-200" : "border-[#102643]/10 bg-white/70 text-slate-600"}`} aria-label="Toggle constable workspace theme">{officerTheme.dark ? <Sun className="h-3.5 w-3.5 text-[#f48a51]" /> : <Moon className="h-3.5 w-3.5 text-[#102643]" />}{officerTheme.dark ? "Light" : "Dark"}</button>}
           <div className={`hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold md:flex ${dark ? "border-white/10 bg-white/5 text-slate-300" : "border-[#102643]/10 bg-white/70 text-slate-600"}`}>
             <ShieldCheck className="h-3.5 w-3.5 text-[#c64e19]" aria-hidden="true" />
             Human verification required
+          </div>
           </div>
         </div>
       </header>
