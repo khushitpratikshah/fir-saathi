@@ -413,6 +413,29 @@ Review the following monthly: Raspberry Pi OS updates, Node version, `fir-saathi
 | Groq drafting/transcription fails | `journalctl -u fir-saathi -f` | Verify server-only `GROQ_API_KEY`, outbound internet access, and Groq account status; do not move the key into browser variables. |
 | Supabase data/evidence calls fail | Server logs and Supabase dashboard | Verify `SUPABASE_URL`, service-role key, migrations, RLS, and private bucket configuration. |
 | Site works locally but not through the domain | Check the Cloudflare dashboard route and tunnel health | Confirm the hostname is attached to the correct tunnel and that the service URL is exactly `http://127.0.0.1:3000`. |
+| A newly deployed screen reports `No procedure found on path ...` | Compare `git rev-parse --short HEAD` with `origin/main`, then inspect `dist/index.js` for the procedure name | Rebuild, restart `fir-saathi`, and retry from a fresh/private browser session. The browser may have loaded new static assets while an earlier API process or tab still served an older router response. |
+
+### Recovery for a stale browser/router rollout
+
+When a new interface calls a recently added tRPC procedure but the app replies `No procedure found on path ...`, do not edit secrets or recreate the service. First confirm the checkout and production bundle, then restart the service and retry in a fresh browser session:
+
+```bash
+sudo -u firsaathi -H bash -lc '
+  export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22 --silent
+  cd /srv/fir-saathi/app
+  git fetch origin
+  echo "LOCAL=$(git rev-parse --short HEAD)"
+  echo "REMOTE=$(git rev-parse --short origin/main)"
+  git pull --ff-only origin main
+  set -a; . /etc/fir-saathi.env; set +a
+  pnpm build
+  grep -o "procedureNameHere" dist/index.js | head
+'
+sudo systemctl restart fir-saathi
+sudo systemctl is-active fir-saathi
+```
+
+Replace `procedureNameHere` with the missing procedure name, for example `addContext`. Both commit values should match, the procedure name should appear in the bundle, and the service should report `active`. Open the site in a private/incognito tab before re-testing so that an earlier browser tab does not retain an outdated client bundle or prior error state.
 
 ## References
 
