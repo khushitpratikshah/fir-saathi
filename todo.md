@@ -29,3 +29,5 @@
 - [x] Add a portable Groq drafting provider with schema-constrained output and explicit server-only configuration.
 - [x] Add a portable OpenAI-compatible transcription provider with exact-language prompting and bounded requests.
 - [x] Document environment variables and self-hosting requirements for external deployment.
+- [x] Add an accessible animated Groq transcription progress state with elapsed-time feedback.
+- [x] Add specific, actionable Groq transcription error messages with retry and text-entry recovery actions.
