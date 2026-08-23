@@ -3,6 +3,7 @@ import { Link, useLocation, useRoute } from "wouter";
 import { ArrowLeft, CheckCircle2, CircleAlert, FileText, Loader2, ShieldCheck, Square, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import FirSaathiShell from "@/components/FirSaathiShell";
+import CitizenJourneyProgress from "@/components/CitizenJourneyProgress";
 import ComplaintStatusPill from "@/components/ComplaintStatusPill";
 import RecordLoading from "@/components/RecordLoading";
 import { trpc } from "@/lib/trpc";
@@ -23,7 +24,7 @@ export default function CitizenConfirmation() {
   const confirm = trpc.complaints.confirm.useMutation({
     onSuccess: () => {
       toast.success("Your confirmation was recorded. The draft is ready for constable review.");
-      navigate("/officer");
+      navigate(`/status/${publicId}`);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -84,6 +85,7 @@ export default function CitizenConfirmation() {
       <main className="page-grid min-h-[calc(100vh-144px)] py-8 sm:py-12">
         <div className="mx-auto max-w-4xl px-5 sm:px-8">
           <Link href="/intake" className="focus-ring inline-flex items-center gap-2 rounded-lg text-sm font-bold text-slate-600 hover:text-[#102643]"><ArrowLeft className="h-4 w-4" /> Back to intake</Link>
+          <div className="mt-5"><CitizenJourneyProgress stage="review" /></div>
           <section className="mt-5 overflow-hidden rounded-[1.4rem] border border-[#102643]/10 bg-[#fbfaf6]/95 shadow-[0_22px_55px_rgba(12,32,57,.09)]">
             <div className="border-b border-[#102643]/10 px-5 py-6 sm:px-7">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

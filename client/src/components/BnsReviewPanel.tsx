@@ -1,0 +1,27 @@
+import { ExternalLink, FileSearch, Quote, Scale, ShieldAlert } from "lucide-react";
+import type { BnsSuggestion, StructuredDraft } from "../../../shared/firSaathi";
+
+type ReviewField = {
+  id: string;
+  fieldKey: string;
+  label: string;
+  value: string;
+  source: "source_statement" | "officer_correction" | "assistant_draft" | "citizen_context";
+};
+
+function badge(suggestion: BnsSuggestion) {
+  if (suggestion.suitability === "possible_match") return "bg-amber-300/20 text-amber-100";
+  if (suggestion.suitability === "needs_officer_assessment") return "bg-slate-300/15 text-slate-200";
+  return "bg-slate-300/15 text-slate-200";
+}
+
+export function BnsReviewPanel({ suggestions }: { suggestions: BnsSuggestion[] }) {
+  return <section className="rounded-2xl border border-[#102643]/10 bg-[#102643] p-5 text-white"><div className="flex items-center gap-2"><Scale className="h-4 w-4 text-[#f48a51]" /><p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-300">BNS review aids</p></div><p className="mt-2 text-xs leading-5 text-slate-400">Source-linked possibilities only. They do not determine a legal section, charge, or FIR.</p><div className="mt-4 space-y-3">{suggestions.map((suggestion) => { const sourceQuotes = Array.isArray(suggestion.sourceQuotes) ? suggestion.sourceQuotes : []; const missingFactors = Array.isArray(suggestion.missingFactors) ? suggestion.missingFactors : ["This earlier draft has no stored evidence map. Reassess from the source record."]; const suitability = suggestion.suitability ?? "officer_review"; return <article key={suggestion.sectionCode} className="rounded-xl bg-white/[0.08] p-3"><div className="flex flex-wrap items-start justify-between gap-2"><p className="text-sm font-bold">{suggestion.sectionCode} · {suggestion.title}</p><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge({ ...suggestion, suitability })}`}>{suitability.replaceAll("_", " ").toUpperCase()}</span></div><p className="mt-2 text-xs leading-5 text-slate-300">{suggestion.rationale}</p>{sourceQuotes.length > 0 && <div className="mt-3"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Exact source excerpts</p>{sourceQuotes.map((quote) => <blockquote key={quote} className="mt-1.5 flex gap-2 border-l border-[#f48a51] pl-2 text-xs leading-5 text-slate-200"><Quote className="mt-0.5 h-3 w-3 shrink-0 text-[#f48a51]" />{quote}</blockquote>)}</div>}{missingFactors.length > 0 && <div className="mt-3 rounded-lg bg-black/15 p-2.5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Still needs assessment</p><ul className="mt-1 space-y-1 text-xs leading-5 text-slate-300">{missingFactors.map((factor) => <li key={factor}>• {factor}</li>)}</ul></div>}{suggestion.sourceUrl && <a href={suggestion.sourceUrl} target="_blank" rel="noreferrer" className="focus-ring mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-[#ffd5c0] hover:text-white">Official source <ExternalLink className="h-3 w-3" /></a>}</article>; })}</div><div className="mt-4 flex gap-2 rounded-xl border border-[#f48a51]/20 bg-[#c64e19]/10 p-3 text-[11px] leading-5 text-[#ffd5c0]"><ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />If no source-linked card is suitable, the safe outcome is officer review required.</div></section>;
+}
+
+export function ReviewBrief({ sourceTranscript, fields, draft, dark }: { sourceTranscript: string; fields: ReviewField[]; draft: StructuredDraft; dark: boolean }) {
+  const citizenContext = fields.filter((field) => field.source === "citizen_context");
+  const sourceFields = fields.filter((field) => field.source === "source_statement");
+  const card = dark ? "border-white/10 bg-white/[0.055] text-slate-100" : "border-[#102643]/10 bg-white text-[#102643]";
+  return <section className={`rounded-2xl border p-5 ${card}`}><div className="flex items-center gap-2"><FileSearch className="h-4 w-4 text-[#f48a51]" /><p className="text-xs font-bold uppercase tracking-[0.15em]">Assistive review brief</p></div><p className={`mt-2 text-xs leading-5 ${dark ? "text-slate-400" : "text-slate-600"}`}>A grouped view of the existing record. It does not replace the source or decide any outcome.</p><div className="mt-4 space-y-3 text-xs leading-5"><div className={`rounded-xl p-3 ${dark ? "bg-black/15" : "bg-[#f5f2eb]"}`}><p className="font-bold">Verbatim source</p><p className={`mt-1 line-clamp-3 ${dark ? "text-slate-300" : "text-slate-600"}`}>{sourceTranscript}</p></div><div><p className="font-bold">Source-evidence map</p><ul className={`mt-1.5 space-y-1 ${dark ? "text-slate-300" : "text-slate-600"}`}>{sourceFields.length ? sourceFields.map((field) => <li key={field.id}><b>{field.label}:</b> “{field.value}”</li>) : <li>No exact excerpt was safely extracted.</li>}</ul></div><div><p className="font-bold">Citizen-provided context</p><ul className={`mt-1.5 space-y-1 ${dark ? "text-slate-300" : "text-slate-600"}`}>{citizenContext.length ? citizenContext.map((field) => <li key={field.id}><b>{field.label}:</b> {field.value}</li>) : <li>None supplied.</li>}</ul></div><div><p className="font-bold">Open questions</p><ul className={`mt-1.5 space-y-1 ${dark ? "text-slate-300" : "text-slate-600"}`}>{draft.followUpQuestions.length ? draft.followUpQuestions.map((question) => <li key={question}>• {question}</li>) : <li>No AI follow-up question was produced.</li>}</ul></div></div></section>;
+}

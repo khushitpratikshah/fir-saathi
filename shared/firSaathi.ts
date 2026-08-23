@@ -5,6 +5,18 @@ export const CITIZEN_CONTEXT_KEYS = ["incident_when", "incident_where", "people_
 export type CitizenContextKey = (typeof CITIZEN_CONTEXT_KEYS)[number];
 export type CitizenContext = Partial<Record<CitizenContextKey, string>>;
 
+export const INTAKE_DRAFT_EXPIRY_HOURS = 72;
+export const GUIDED_INTAKE_STEPS = ["language", "statement", "when", "where", "safety", "details", "review"] as const;
+export type GuidedIntakeStep = (typeof GUIDED_INTAKE_STEPS)[number];
+
+export type ResumableIntakeDraft = {
+  language: SupportedLanguage;
+  sourceTranscript: string;
+  context: CitizenContext;
+  currentStep: number;
+  expiresAt: Date;
+};
+
 export const COMPLAINT_STATUSES = [
   "draft",
   "needs_citizen_confirmation",
@@ -14,29 +26,69 @@ export const COMPLAINT_STATUSES = [
 ] as const;
 export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 
-export const DEMO_BNS_REFERENCES = [
-  {
-    sectionCode: "BNS 304",
-    title: "Snatching",
-    summary: "Demonstrative reference only. Verify against the official statute before relying on any section.",
-    sourceLabel: "Prototype allow-list derived from the supplied FIR Saathi brief",
-    verificationStatus: "demo_only" as const,
-  },
+export const BNS_REVIEW_REFERENCES = [
   {
     sectionCode: "BNS 115",
     title: "Voluntarily causing hurt",
-    summary: "Demonstrative reference only. Verify against the official statute before relying on any section.",
-    sourceLabel: "Prototype allow-list derived from the supplied FIR Saathi brief",
-    verificationStatus: "demo_only" as const,
+    summary: "Possible-match review aid only. The source must describe an act and resulting hurt; a constable must assess all facts and legal requirements.",
+    sourceLabel: "The Bharatiya Nyaya Sanhita, 2023, official gazette text",
+    sourceUrl: "https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf",
+    reviewedAt: "2026-08-23",
+    eligibilityIndicators: ["an act or conduct is described", "hurt or bodily injury is described"],
+    verificationStatus: "verified" as const,
+  },
+  {
+    sectionCode: "BNS 303",
+    title: "Theft",
+    summary: "Possible-match review aid only. The source must describe movable property being taken without consent; a constable must assess all facts and legal requirements.",
+    sourceLabel: "The Bharatiya Nyaya Sanhita, 2023, official gazette text",
+    sourceUrl: "https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf",
+    reviewedAt: "2026-08-23",
+    eligibilityIndicators: ["movable property is identified", "taking without consent is described"],
+    verificationStatus: "verified" as const,
+  },
+  {
+    sectionCode: "BNS 304",
+    title: "Snatching",
+    summary: "Possible-match review aid only. The source must describe sudden, quick, or forcible taking from a person or their possession; a constable must assess all facts and legal requirements.",
+    sourceLabel: "The Bharatiya Nyaya Sanhita, 2023, official gazette text",
+    sourceUrl: "https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf",
+    reviewedAt: "2026-08-23",
+    eligibilityIndicators: ["movable property is identified", "sudden, quick, or forcible taking is described", "taking from a person or possession is described"],
+    verificationStatus: "verified" as const,
+  },
+  {
+    sectionCode: "BNS 308",
+    title: "Extortion",
+    summary: "Possible-match review aid only. The source must describe fear of injury and delivery of property or a valuable security; a constable must assess all facts and legal requirements.",
+    sourceLabel: "The Bharatiya Nyaya Sanhita, 2023, official gazette text",
+    sourceUrl: "https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf",
+    reviewedAt: "2026-08-23",
+    eligibilityIndicators: ["threat or fear of injury is described", "delivery of property or valuable security is described"],
+    verificationStatus: "verified" as const,
   },
   {
     sectionCode: "BNS 309",
     title: "Robbery",
-    summary: "Demonstrative reference only. Verify against the official statute before relying on any section.",
-    sourceLabel: "Prototype allow-list derived from the supplied FIR Saathi brief",
-    verificationStatus: "demo_only" as const,
+    summary: "Possible-match review aid only. The source must describe theft or extortion together with the relevant immediate force, hurt, restraint, or fear; a constable must assess all facts and legal requirements.",
+    sourceLabel: "The Bharatiya Nyaya Sanhita, 2023, official gazette text",
+    sourceUrl: "https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf",
+    reviewedAt: "2026-08-23",
+    eligibilityIndicators: ["property taking or delivery is described", "force, hurt, restraint, or immediate fear is described"],
+    verificationStatus: "verified" as const,
+  },
+  {
+    sectionCode: "BNS 351",
+    title: "Criminal intimidation",
+    summary: "Possible-match review aid only. The source must describe a threat of injury; a constable must assess all facts and legal requirements.",
+    sourceLabel: "The Bharatiya Nyaya Sanhita, 2023, official gazette text",
+    sourceUrl: "https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf",
+    reviewedAt: "2026-08-23",
+    eligibilityIndicators: ["a threat is described", "the threatened injury is described"],
+    verificationStatus: "verified" as const,
   },
 ] as const;
+export type BnsReviewReference = (typeof BNS_REVIEW_REFERENCES)[number];
 
 export type DraftField = {
   key: string;
@@ -53,6 +105,11 @@ export type BnsSuggestion = {
   title: string;
   confidence: "high" | "medium" | "review";
   rationale: string;
+  sourceQuotes: string[];
+  missingFactors: string[];
+  suitability: "possible_match" | "needs_officer_assessment" | "officer_review";
+  sourceUrl?: string;
+  reviewedAt?: string;
 };
 
 export type StructuredDraft = {

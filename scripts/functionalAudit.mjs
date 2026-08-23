@@ -5,7 +5,9 @@ import {
   correctComplaintField,
   createComplaint,
   getComplaintDetail,
+  resumeIntakeDraft,
   returnComplaint,
+  saveIntakeDraft,
   verifyComplaint,
 } from "../server/db";
 
@@ -14,6 +16,22 @@ function assert(condition, message) {
 }
 
 async function main() {
+  const saved = await saveIntakeDraft({
+    language: "en",
+    sourceTranscript: "Synthetic functional verification only: a bicycle was damaged outside a library at noon.",
+    consent: true,
+    currentStep: 5,
+    context: {
+      incident_when: "today at noon",
+      incident_where: "outside the central library",
+      property_or_loss: "blue bicycle",
+    },
+  });
+  assert(saved.resumeCode.startsWith("FSR-"), "Saved intake did not return a private resume code.");
+  const resumed = await resumeIntakeDraft(saved.resumeCode);
+  assert(resumed.sourceTranscript.includes("Synthetic functional verification only"), "Saved source transcript was not restored.");
+  assert(resumed.context.incident_where === "outside the central library", "Saved citizen context was not restored separately.");
+
   const created = await createComplaint({
     language: "en",
     sourceTranscript: "Synthetic functional verification only: a bicycle was damaged outside a library at noon.",
@@ -23,7 +41,12 @@ async function main() {
       incident_where: "outside the central library",
       property_or_loss: "blue bicycle",
     },
+    resumeCode: saved.resumeCode,
   });
+
+  let consumedDraftUnavailable = false;
+  try { await resumeIntakeDraft(saved.resumeCode); } catch { consumedDraftUnavailable = true; }
+  assert(consumedDraftUnavailable, "Saved intake draft remained resumable after a complaint was created.");
 
   const first = await getComplaintDetail(created.publicId);
   assert(first, "Created complaint cannot be retrieved.");
@@ -62,7 +85,7 @@ async function main() {
   assert(final.fields.every((field) => field.verificationState === "officer_verified"), "Verification did not update field verification states.");
   assert(final.audit.some((event) => event.eventType === "created") && final.audit.some((event) => event.eventType === "verified") && final.audit.some((event) => event.eventType === "field_corrected"), "Expected audit events were not persisted.");
 
-  console.log(JSON.stringify({ publicId: created.publicId, finalStatus: final.complaint.status, auditEvents: final.audit.length, sourcePreserved: true }, null, 2));
+  console.log(JSON.stringify({ publicId: created.publicId, finalStatus: final.complaint.status, auditEvents: final.audit.length, sourcePreserved: true, resumeDraftConsumed: true }, null, 2));
   process.exit(0);
 }
 

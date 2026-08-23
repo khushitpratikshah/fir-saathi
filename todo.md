@@ -77,3 +77,9 @@
 - [x] Add practical core complaint-process features for incident context, contact follow-up, and case readiness.
 - [x] Strengthen constable review aids while preserving human verification and non-registration guardrails.
 - [x] Validate the focused multilingual core workflow, push the private repository update, and checkpoint it.
+- [x] Add anonymous, code-gated, expiring intake-draft persistence without storing unfinished audio or expanding authentication.
+- [x] Rebuild citizen intake as an accessible one-question-at-a-time guided flow with back, continue, and optional skip controls.
+- [x] Add reusable plain-language citizen progress, resume, and post-confirmation review-status experiences.
+- [x] Replace the narrow demonstrative BNS list with source-linked, evidence-gated review cards and safer uncertainty handling.
+- [x] Add bounded AI assistance for missing-detail questions, selected-language question phrasing, source-evidence mapping, and constable review briefs.
+- [ ] Validate the complete usability and review-support update, synchronize the private repository, and save a checkpoint.

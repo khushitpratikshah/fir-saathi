@@ -20,14 +20,29 @@ describe("FIR Saathi source-preserving drafting safeguards", () => {
     }]);
   });
 
-  it("drops out-of-allow-list legal suggestions and returns safe REVIEW", () => {
+  it("drops out-of-catalogue or non-source-grounded legal suggestions and returns safe REVIEW", () => {
     expect(normaliseBnsSuggestions([
-      { sectionCode: "BNS 999", title: "Invented", confidence: "high", rationale: "Unsupported" },
-    ])).toEqual([{
+      { sectionCode: "BNS 999", title: "Invented", confidence: "high", rationale: "Unsupported", sourceQuotes: ["taken"], missingFactors: [], suitability: "possible_match" },
+    ], "My phone was taken.")).toMatchObject([{
       sectionCode: "REVIEW",
       title: "Officer review required",
       confidence: "review",
-      rationale: "No demonstrative allow-list reference is suitable from the available account.",
+    }]);
+    expect(normaliseBnsSuggestions([
+      { sectionCode: "BNS 303", title: "Theft", confidence: "medium", rationale: "Not in record", sourceQuotes: ["invented detail"], missingFactors: [], suitability: "possible_match" },
+    ], "My phone was taken.")[0]?.sectionCode).toBe("REVIEW");
+  });
+
+  it("retains only catalogue suggestions with exact source evidence and preserves uncertainty", () => {
+    const suggestions = normaliseBnsSuggestions([
+      { sectionCode: "BNS 303", title: "Wrong title", confidence: "high", rationale: "The source describes a phone being taken.", sourceQuotes: ["my phone was taken"], missingFactors: ["Consent is not stated in the source."], suitability: "possible_match" },
+    ], "Yesterday my phone was taken near the bus stop.");
+    expect(suggestions).toMatchObject([{
+      sectionCode: "BNS 303",
+      title: "Theft",
+      sourceQuotes: ["my phone was taken"],
+      missingFactors: ["Consent is not stated in the source."],
+      suitability: "possible_match",
     }]);
   });
 

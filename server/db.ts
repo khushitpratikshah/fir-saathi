@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { nanoid } from "nanoid";
-import { DEMO_BNS_REFERENCES, EMPTY_DRAFT, type BnsSuggestion, type CitizenContext, type ComplaintStatus, type DraftField, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
+import { BNS_REVIEW_REFERENCES, EMPTY_DRAFT, INTAKE_DRAFT_EXPIRY_HOURS, type BnsSuggestion, type CitizenContext, type ComplaintStatus, type DraftField, type ResumableIntakeDraft, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
 import { generateSafeDraft } from "./drafting";
 import { groqTranscribe } from "./groqProvider";
 import { portableEvidencePut, portableEvidenceSignedUrl } from "./portableStorage";
@@ -62,6 +62,9 @@ type SupabaseBnsReference = {
   title: string;
   summary: string;
   source_label: string;
+  source_url: string | null;
+  reviewed_at: string | null;
+  eligibility_indicators: string[];
   verification_status: "demo_only" | "unverified" | "verified";
   updated_at: string;
 };
@@ -75,7 +78,21 @@ type SupabaseProfile = {
   updated_at: string;
 };
 
+type SupabaseIntakeDraft = {
+  id: string;
+  resume_code_hash: string;
+  language: SupportedLanguage;
+  source_transcript: string;
+  citizen_context: CitizenContext;
+  current_step: number;
+  consent_at: string;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+};
+
 const complaintColumns = "id,public_id,language,status,consent_at,citizen_confirmed_at,source_transcript,draft_json,created_at,updated_at";
+const intakeDraftColumns = "id,resume_code_hash,language,source_transcript,citizen_context,current_step,consent_at,created_at,updated_at,expires_at";
 
 function mapComplaint(row: SupabaseComplaint) {
   return {
@@ -104,12 +121,35 @@ function mapAuditEvent(row: SupabaseAuditEvent) {
   return { id: row.id, complaintId: row.complaint_id, actorLabel: row.actor_label, actorRole: row.actor_role, eventType: row.event_type, fieldKey: row.field_key, previousValue: row.previous_value, newValue: row.new_value, reason: row.reason, createdAt: new Date(row.created_at) };
 }
 
+function mapIntakeDraft(row: SupabaseIntakeDraft): ResumableIntakeDraft {
+  return { language: row.language, sourceTranscript: row.source_transcript, context: row.citizen_context ?? {}, currentStep: row.current_step, expiresAt: new Date(row.expires_at) };
+}
+
 async function insertAuditEvent(event: Omit<SupabaseAuditEvent, "id" | "created_at">) {
   await supabaseRequest("fir_saathi_audit_events", { method: "POST", prefer: "return=minimal", body: JSON.stringify(event) });
 }
 
 async function findComplaintRow(publicId: string) {
   const rows = await supabaseRequest<SupabaseComplaint[]>(`fir_saathi_complaints?select=${complaintColumns}&public_id=eq.${encodeURIComponent(publicId)}&limit=1`);
+  return rows[0];
+}
+
+function normaliseResumeCode(value: string) {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function hashResumeCode(value: string) {
+  return createHash("sha256").update(normaliseResumeCode(value)).digest("hex");
+}
+
+function createResumeCode() {
+  return `FSR-${randomBytes(16).toString("hex").toUpperCase()}`;
+}
+
+async function findActiveIntakeDraftByCode(resumeCode: string) {
+  const expiresAt = encodeURIComponent(new Date().toISOString());
+  const codeHash = hashResumeCode(resumeCode);
+  const rows = await supabaseRequest<SupabaseIntakeDraft[]>(`fir_saathi_intake_drafts?select=${intakeDraftColumns}&resume_code_hash=eq.${codeHash}&expires_at=gt.${expiresAt}&limit=1`);
   return rows[0];
 }
 
@@ -120,11 +160,14 @@ async function requireComplaint(publicId: string) {
 }
 
 async function ensureBnsReferences() {
-  const references = DEMO_BNS_REFERENCES.map((reference) => ({
+  const references = BNS_REVIEW_REFERENCES.map((reference) => ({
     section_code: reference.sectionCode,
     title: reference.title,
     summary: reference.summary,
     source_label: reference.sourceLabel,
+    source_url: reference.sourceUrl,
+    reviewed_at: reference.reviewedAt,
+    eligibility_indicators: reference.eligibilityIndicators,
     verification_status: reference.verificationStatus,
   }));
   await supabaseRequest("fir_saathi_bns_references?on_conflict=section_code", { method: "POST", prefer: "resolution=merge-duplicates,return=minimal", body: JSON.stringify(references) });
@@ -175,7 +218,47 @@ export async function getComplaintDetail(publicId: string) {
   return { complaint: mapComplaint(complaint), fields: fields.map(mapField), evidence: evidence.map(mapEvidence), audit: audit.map(mapAuditEvent) };
 }
 
-export async function createComplaint(input: { language: SupportedLanguage; sourceTranscript: string; consent: boolean; context: CitizenContext }) {
+export async function saveIntakeDraft(input: { language: SupportedLanguage; sourceTranscript: string; context: CitizenContext; currentStep: number; consent: true; resumeCode?: string }) {
+  const expiresAt = new Date(Date.now() + INTAKE_DRAFT_EXPIRY_HOURS * 60 * 60 * 1000);
+  const existing = input.resumeCode ? await findActiveIntakeDraftByCode(input.resumeCode) : undefined;
+  const payload = {
+    language: input.language,
+    source_transcript: input.sourceTranscript.trim(),
+    citizen_context: Object.fromEntries(normaliseCitizenContext(input.context).map(({ key, value }) => [key, value])),
+    current_step: input.currentStep,
+    consent_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    expires_at: expiresAt.toISOString(),
+  };
+
+  if (existing) {
+    await supabaseRequest(`fir_saathi_intake_drafts?id=eq.${existing.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify(payload) });
+    return { resumeCode: normaliseResumeCode(input.resumeCode!), expiresAt, updatedExisting: true };
+  }
+
+  const resumeCode = createResumeCode();
+  await supabaseRequest("fir_saathi_intake_drafts", {
+    method: "POST",
+    prefer: "return=minimal",
+    body: JSON.stringify({ ...payload, resume_code_hash: hashResumeCode(resumeCode) }),
+  });
+  return { resumeCode, expiresAt, updatedExisting: false };
+}
+
+export async function resumeIntakeDraft(resumeCode: string) {
+  const draft = await findActiveIntakeDraftByCode(resumeCode);
+  if (!draft) throw new Error("This saved intake is unavailable. Check the private resume code or begin a new intake.");
+  return mapIntakeDraft(draft);
+}
+
+async function consumeIntakeDraft(resumeCode?: string) {
+  if (!resumeCode) return;
+  const existing = await findActiveIntakeDraftByCode(resumeCode);
+  if (!existing) return;
+  await supabaseRequest(`fir_saathi_intake_drafts?id=eq.${existing.id}`, { method: "DELETE", prefer: "return=minimal" });
+}
+
+export async function createComplaint(input: { language: SupportedLanguage; sourceTranscript: string; consent: boolean; context: CitizenContext; resumeCode?: string }) {
   const publicId = `FS-${nanoid(7).toUpperCase()}`;
   const created = await supabaseRequest<SupabaseComplaint[]>("fir_saathi_complaints", {
     method: "POST",
@@ -187,6 +270,7 @@ export async function createComplaint(input: { language: SupportedLanguage; sour
   await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created text draft", reason: null });
   await draftComplaint(publicId);
   await saveCitizenContext(complaint.id, input.context);
+  await consumeIntakeDraft(input.resumeCode);
   return { publicId };
 }
 
@@ -311,7 +395,7 @@ export async function verifyComplaint(input: { publicId: string; actorLabel: str
 export async function listDemoBnsReferences() {
   await ensureBnsReferences();
   const rows = await supabaseRequest<SupabaseBnsReference[]>("fir_saathi_bns_references?select=*&order=section_code.asc");
-  return rows.map((row: SupabaseBnsReference) => ({ id: row.id, sectionCode: row.section_code, title: row.title, summary: row.summary, sourceLabel: row.source_label, verificationStatus: row.verification_status, updatedAt: new Date(row.updated_at) }));
+  return rows.map((row: SupabaseBnsReference) => ({ id: row.id, sectionCode: row.section_code, title: row.title, summary: row.summary, sourceLabel: row.source_label, sourceUrl: row.source_url, reviewedAt: row.reviewed_at, eligibilityIndicators: row.eligibility_indicators ?? [], verificationStatus: row.verification_status, updatedAt: new Date(row.updated_at) }));
 }
 
 export async function listRoleProfiles() {
