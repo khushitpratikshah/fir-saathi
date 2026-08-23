@@ -102,7 +102,7 @@
 - [x] Create a detailed context.md project reference for FIR Saathi covering the product, workflow, safeguards, technical architecture, visual design, and deployment context.
 - [x] Fix transcript coverage so clearly source-backed time details do not trigger a repeated time follow-up.
 - [x] Repair desktop text rendering after the responsive hero and follow-up layout changes, then validate desktop and mobile views.
-- [ ] Set up a least-privilege remote connection for direct, controlled FIR Saathi deployments to the Raspberry Pi.
-- [ ] Add a repository-scoped GitHub Actions self-hosted runner workflow for controlled automatic deployment to the Raspberry Pi.
-- [ ] Align the guarded deployment workflow with the registered Raspberry Pi runner's built-in ARM64 label and verify an automatic rollout.
+- [x] Set up a least-privilege remote connection for direct, controlled FIR Saathi deployments to the Raspberry Pi.
+- [x] Add a repository-scoped GitHub Actions self-hosted runner workflow for controlled automatic deployment to the Raspberry Pi.
+- [x] Align the guarded deployment workflow with the registered Raspberry Pi runner's built-in ARM64 label and verify an automatic rollout.
 - [x] Bootstrap the protected Pi checkout with the committed deployment script before retrying the first runner deployment.
