@@ -5,15 +5,15 @@ import type { PropsWithChildren } from "react";
 type ShellProps = PropsWithChildren<{
   dark?: boolean;
   compact?: boolean;
+  showcase?: boolean;
 }>;
 
 const navItems = [
-  { href: "/impact-demo", label: "Guided story" },
   { href: "/intake", label: "Citizen intake" },
   { href: "/officer", label: "Constable review" },
 ];
 
-export default function FirSaathiShell({ children, dark = false, compact = false }: ShellProps) {
+export default function FirSaathiShell({ children, dark = false, compact = false, showcase = false }: ShellProps) {
   const [location] = useLocation();
 
   return (
@@ -24,7 +24,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#c64e19] text-xs font-bold tracking-[-0.05em] text-white shadow-[0_7px_18px_rgba(198,78,25,0.28)]">FS</span>
             <span className="leading-tight">
               <span className="block text-sm font-bold tracking-[-0.02em]">FIR Saathi</span>
-              <span className={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>Impact Fest showcase</span>
+              <span className={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>{showcase ? "Intel AI Impact Fest" : "Citizen complaint workspace"}</span>
             </span>
           </Link>
 
@@ -49,7 +49,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
           </div>
         </div>
       </header>
-      {children}
+      <div className={`app-stage ${showcase ? "app-stage-showcase" : "app-stage-workspace"}`}>{children}</div>
       <footer className={`border-t ${dark ? "border-white/10 text-slate-400" : "border-[#102643]/10 text-slate-500"}`}>
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-5 text-xs leading-relaxed sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div className="flex items-center gap-2"><ClipboardPenLine className="h-3.5 w-3.5 text-[#c64e19]" aria-hidden="true" /> FIR Saathi drafts and verifies; it does not register an FIR.</div>

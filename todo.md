@@ -36,3 +36,9 @@
 - [x] Add and validate high-impact multilingual guided demo states that work without external audio or AI-provider availability.
 - [x] Elevate the constable workspace with an impact dashboard, explainable AI decision trail, and demo-ready interactions.
 - [x] Validate the end-to-end showcase flow at desktop and mobile sizes, then checkpoint the Impact Fest demonstration update.
+- [x] Reframe the landing page as a promotional FIR Saathi / Intel AI Impact Fest project presentation with direct entry into the real application.
+- [x] Remove guided-demo framing and automatic demonstration behaviour from the citizen, confirmation, and constable app routes.
+- [x] Preserve and strengthen the live data-backed intake, AI-processing, confirmation, correction, audit, and verification flows.
+- [x] Add immersive but accessible motion to real application transitions, source capture, AI processing, and review states.
+- [x] Validate the separated landing and real-app journeys on desktop and mobile.
+- [ ] Save the checkpoint for the separated promotional landing and immersive real-app refinement.
