@@ -1,0 +1,29 @@
+name: Deploy FIR Saathi to Raspberry Pi
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fir-saathi-raspberry-pi-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and restart production service
+    # This label must exist only on the repository-scoped runner installed on the production Pi.
+    runs-on: [self-hosted, Linux, fir-saathi-prod]
+    if: github.repository == 'khushitpratikshah/fir-saathi' && github.ref == 'refs/heads/main'
+    timeout-minutes: 20
+    steps:
+      - name: Confirm trusted deployment revision
+        run: |
+          test -n "$GITHUB_SHA"
+          printf 'Deploying trusted main revision %s\n' "$GITHUB_SHA"
+
+      - name: Pull, build, and restart FIR Saathi
+        run: /srv/fir-saathi/app/bin/deploy-from-main.sh "$GITHUB_SHA"

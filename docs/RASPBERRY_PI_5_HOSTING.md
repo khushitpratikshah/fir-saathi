@@ -399,7 +399,68 @@ The Pi does not hold the main complaint database or evidence objects. Your opera
 
 Review the following monthly: Raspberry Pi OS updates, Node version, `fir-saathi` and `cloudflared` logs, UFW rules, Cloudflare tunnel health, Supabase project status, Groq usage limits, deploy keys, and all server-side secrets. Rotate the Cloudflare tunnel token, `GROQ_API_KEY`, or `SUPABASE_SERVICE_ROLE_KEY` immediately if any may have been exposed.
 
-## 14. Troubleshooting
+## 14. Optional automatic deployment with a repository-scoped GitHub runner
+
+FIR Saathi includes `.github/workflows/deploy-raspberry-pi.yml`. It can automatically deploy a **push to `main`** only when a repository-scoped self-hosted runner on this Pi has the `fir-saathi-prod` label. The workflow does not receive application secrets from GitHub. Instead, the local deployment script reads the existing root-owned `/etc/fir-saathi.env` file and restarts the already-configured `fir-saathi` service.
+
+> **Security boundary:** A self-hosted runner executes workflow code on the Pi. Keep this repository private, restrict write access, never enable this workflow for pull requests or forks, and register the runner to this repository only. GitHub cautions that self-hosted runners are not isolated clean machines and should be treated as sensitive deployment infrastructure.[10]
+
+### 14.1 Allow the runner to restart only this service
+
+The runner should run as the existing `firsaathi` service user. Permit that user to restart and check **only** the FIR Saathi service:
+
+```bash
+sudo tee /etc/sudoers.d/firsaathi-deploy >/dev/null <<'EOF'
+firsaathi ALL=(root) NOPASSWD: /bin/systemctl restart fir-saathi, /bin/systemctl is-active --quiet fir-saathi
+EOF
+sudo chmod 0440 /etc/sudoers.d/firsaathi-deploy
+sudo visudo -cf /etc/sudoers.d/firsaathi-deploy
+```
+
+Do not grant the runner blanket passwordless `sudo`, access to `/etc/fir-saathi.env`, or permission to run arbitrary `systemctl` commands.
+
+### 14.2 Register the runner
+
+In the private GitHub repository, open **Settings → Actions → Runners → New self-hosted runner**, choose **Linux** and **ARM64**, then use the download and registration commands that GitHub displays. GitHub generates a registration token that expires after one hour; enter it only in the Pi terminal and do not share it.[11]
+
+Install it as the `firsaathi` user in a directory outside the app checkout, such as `/srv/fir-saathi/actions-runner`:
+
+```bash
+sudo install -d -o firsaathi -g firsaathi -m 0750 /srv/fir-saathi/actions-runner
+sudo -u firsaathi -H bash
+cd /srv/fir-saathi/actions-runner
+# Run GitHub's displayed ARM64 download/extract command here.
+# Then register with the repository URL and one-hour token:
+./config.sh --url https://github.com/khushitpratikshah/fir-saathi --token YOUR_ONE_HOUR_TOKEN --labels fir-saathi-prod --unattended --name fir-saathi-pi
+exit
+```
+
+After registration, install and start the runner service:
+
+```bash
+cd /srv/fir-saathi/actions-runner
+sudo ./svc.sh install firsaathi
+sudo ./svc.sh start
+sudo ./svc.sh status
+```
+
+The runner should show as **Idle** under the repository’s **Settings → Actions → Runners** page. GitHub’s Linux runner service uses `svc.sh` after registration.[12]
+
+### 14.3 First controlled deployment
+
+Before relying on automation, review the workflow in this repository and make one harmless commit to `main`. In the repository’s **Actions** tab, open **Deploy FIR Saathi to Raspberry Pi** and confirm that it runs only on the `fir-saathi-prod` runner. The workflow executes the local `bin/deploy-from-main.sh` script, which fetches `main`, verifies the triggering commit is present, runs install/type-check/build, and restarts `fir-saathi` only after a successful build.
+
+If a deployment fails, do not repeatedly re-run it without reading the log. On the Pi, inspect:
+
+```bash
+sudo journalctl -u fir-saathi -n 100 --no-pager
+sudo systemctl status fir-saathi --no-pager
+sudo -u firsaathi -H git -C /srv/fir-saathi/app log -1 --oneline
+```
+
+To stop automation temporarily, disable the runner service with `sudo ./svc.sh stop` from `/srv/fir-saathi/actions-runner`, or disable the workflow in GitHub. The existing manual update procedure in section 12 remains available as a recovery path.
+
+## 15. Troubleshooting
 
 | Symptom | Check | Likely fix |
 |---|---|---|
@@ -456,5 +517,11 @@ Replace `procedureNameHere` with the missing procedure name, for example `addCon
 [8] [Resend Docs, *What is Resend Pricing?*](https://resend.com/docs/knowledge-base/what-is-resend-pricing)
 
 [9] [Twilio, *SendGrid Email API pricing*](https://www.twilio.com/en-us/products/email-api/pricing)
+
+[10] [GitHub Docs, *Secure use reference — Hardening for self-hosted runners*](https://docs.github.com/actions/how-tos/security-for-github-actions/security-guides/security-hardening-for-github-actions)
+
+[11] [GitHub Docs, *Adding self-hosted runners*](https://docs.github.com/actions/hosting-your-own-runners/adding-self-hosted-runners)
+
+[12] [GitHub Docs, *Configuring the self-hosted runner application as a service*](https://docs.github.com/actions/hosting-your-own-runners/managing-self-hosted-runners/configuring-the-self-hosted-runner-application-as-a-service)
 
 [10] [Resend Docs, *Send emails using Supabase with SMTP*](https://resend.com/docs/send-with-supabase-smtp)
