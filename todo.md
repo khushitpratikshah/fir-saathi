@@ -83,3 +83,4 @@
 - [x] Replace the narrow demonstrative BNS list with source-linked, evidence-gated review cards and safer uncertainty handling.
 - [x] Add bounded AI assistance for missing-detail questions, selected-language question phrasing, source-evidence mapping, and constable review briefs.
 - [x] Validate the complete usability and review-support update, synchronize the private repository, and save a checkpoint.
+- [x] Create a Raspberry Pi 5 self-hosting guide for FIR Saathi with external Supabase and Groq services, secure HTTPS, service management, and operational maintenance.
