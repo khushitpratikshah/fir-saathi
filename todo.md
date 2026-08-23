@@ -112,4 +112,4 @@
 - [x] Add constable queue focus shortcuts for ready-for-review and citizen-confirmation records.
 - [x] Add transparent AI source-coverage and uncertainty guidance without inventing, translating, or deciding complaint facts.
 - [x] Render a persistent source-coverage panel with exact source quotes, fixed uncertainty categories, and clear availability feedback.
-- [ ] Push the completed feature set and verify the configured Raspberry Pi runner deploys it successfully.
+- [x] Push the completed feature set and verify the configured Raspberry Pi runner deploys it successfully.
