@@ -108,6 +108,25 @@ button:disabled { cursor: not-allowed; }
 .thin-scrollbar::-webkit-scrollbar-thumb { background: rgba(26, 45, 69, 0.2); border-radius: 99px; }
 .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
 
+.hero-headline > span { display: block; }
+
+@media (max-width: 639px) {
+  .hero-headline {
+    font-size: clamp(2.45rem, 11.4vw, 3.25rem);
+    line-height: 1.02;
+    letter-spacing: -0.045em;
+    text-wrap: wrap;
+    word-spacing: 0.04em;
+  }
+
+  /* Samsung Internet can paint a transformed large headline over its settled text. */
+  .hero-headline.fade-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .focus-ring:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: 3px solid rgba(198, 78, 25, 0.48);
   outline-offset: 3px;

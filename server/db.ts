@@ -364,6 +364,24 @@ export async function addCitizenClarification(input: { publicId: string; clarifi
   return { success: true };
 }
 
+export async function addPreConfirmationContext(input: { publicId: string; key: keyof CitizenContext; value: string }) {
+  const complaint = await requireComplaint(input.publicId);
+  if (complaint.status !== "needs_citizen_confirmation") throw new Error("This detail can only be added while your draft is awaiting confirmation.");
+  const value = input.value.trim();
+  if (value.length < 2) throw new Error("Please add a short detail or skip this optional question.");
+  const label = contextLabels[input.key];
+  const fieldKey = `context_${input.key}`;
+  const existingRows = await supabaseRequest<SupabaseField[]>(`fir_saathi_complaint_fields?select=*&complaint_id=eq.${complaint.id}&field_key=eq.${encodeURIComponent(fieldKey)}&limit=1`);
+  const existing = existingRows[0];
+  if (existing) {
+    await supabaseRequest(`fir_saathi_complaint_fields?id=eq.${existing.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ value, label, source: "citizen_context", confidence: "manual", verification_state: "unverified" }) });
+  } else {
+    await supabaseRequest("fir_saathi_complaint_fields", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, field_key: fieldKey, label, value, source: "citizen_context", confidence: "manual", verification_state: "unverified" }) });
+  }
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "context_added", field_key: fieldKey, previous_value: existing?.value ?? null, new_value: "Citizen-provided follow-up detail stored separately from the source statement", reason: null });
+  return { success: true };
+}
+
 export async function correctComplaintField(input: { publicId: string; fieldKey: string; label: string; value: string; actorLabel: string; reason: string }) {
   const complaint = await requireComplaint(input.publicId);
   const existingRows = await supabaseRequest<SupabaseField[]>(`fir_saathi_complaint_fields?select=*&complaint_id=eq.${complaint.id}&field_key=eq.${encodeURIComponent(input.fieldKey)}&limit=1`);

@@ -90,5 +90,10 @@
 - [x] Diagnose and document the Supabase confirmation-email delivery and retry path for Raspberry Pi-hosted account sign-up.
 - [x] Add current free custom-SMTP setup guidance for Supabase confirmation emails using a domain on Cloudflare.
 - [x] Diagnose and correct the Supabase confirmation-link flow that leaves a newly emailed account unconfirmed on the Raspberry Pi deployment.
-- [ ] Diagnose and correct the browser sign-in/sign-up mode failure after email confirmation on the Raspberry Pi deployment.
-- [ ] Diagnose and correct the Supabase refresh-token validation failure after Raspberry Pi sign-in.
+- [x] Diagnose and correct the browser sign-in/sign-up mode failure after email confirmation on the Raspberry Pi deployment.
+- [x] Diagnose and correct the Supabase refresh-token validation failure after Raspberry Pi sign-in.
+- [x] Verify and correct the Raspberry Pi deployment state after the refresh-token fix push.
+- [ ] Make voice intake transcript-first: capture supplied details, then ask only remaining high-value fields one at a time.
+- [ ] Remove low-value citizen intake prompts while preserving source text, safety, and useful optional context.
+- [x] Replace the completed-status "Start another intake" action with navigation back to the main page.
+- [x] Fix the mobile landing-page hero headline overlap and validate the responsive rendering.

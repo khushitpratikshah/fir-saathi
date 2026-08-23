@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, constableProcedure, publicProcedure, router } from "./_core/trpc";
-import { addCitizenClarification, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, resumeIntakeDraft, returnComplaint, saveIntakeDraft, verifyComplaint, verifyEvidenceHash } from "./db";
+import { addCitizenClarification, addPreConfirmationContext, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, resumeIntakeDraft, returnComplaint, saveIntakeDraft, verifyComplaint, verifyEvidenceHash } from "./db";
 import { clearPortableSession, getPortableUser, storePortableSession } from "./supabaseAuth";
 import { SUPPORTED_LANGUAGES } from "../shared/firSaathi";
 
@@ -75,6 +75,7 @@ export const appRouter = router({
     draft: publicProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { return await draftComplaint(input.publicId); } catch (error) { return databaseError(error); } }),
     confirm: publicProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { await confirmComplaint(input.publicId); return { success: true }; } catch (error) { return databaseError(error); } }),
     addClarification: publicProcedure.input(z.object({ publicId: publicIdSchema, clarification: z.string().trim().min(4).max(2_000) })).mutation(async ({ input }) => { try { return await addCitizenClarification(input); } catch (error) { return databaseError(error); } }),
+    addContext: publicProcedure.input(z.object({ publicId: publicIdSchema, key: z.enum(["incident_when", "incident_where", "injury_or_safety", "people_or_vehicle", "property_or_loss", "follow_up_contact"]), value: z.string().trim().min(2).max(500) })).mutation(async ({ input }) => { try { return await addPreConfirmationContext(input); } catch (error) { return databaseError(error); } }),
     correctField: constableProcedure.input(z.object({ publicId: publicIdSchema, fieldKey: z.string().trim().min(1).max(80), label: z.string().trim().min(1).max(160), value: z.string().trim().min(1).max(5_000), reason: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await correctComplaintField({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
     returnForCorrection: constableProcedure.input(z.object({ publicId: publicIdSchema, reason: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await returnComplaint({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
     verify: constableProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input, ctx }) => { try { await verifyComplaint({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),

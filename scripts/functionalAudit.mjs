@@ -1,6 +1,7 @@
 import "dotenv/config";
 import {
   addCitizenClarification,
+  addPreConfirmationContext,
   confirmComplaint,
   correctComplaintField,
   createComplaint,
@@ -53,6 +54,11 @@ async function main() {
   assert(first.complaint.status === "needs_citizen_confirmation", "Created complaint did not enter citizen-confirmation status.");
   assert(first.complaint.sourceTranscript.includes("Synthetic functional verification only"), "Source transcript was not preserved.");
   assert(first.fields.some((field) => field.fieldKey === "context_incident_where" && field.source === "citizen_context"), "Citizen-provided incident context was not stored separately.");
+
+  await addPreConfirmationContext({ publicId: created.publicId, key: "injury_or_safety", value: "No injury was reported in this synthetic test." });
+  const afterAdaptiveContext = await getComplaintDetail(created.publicId);
+  assert(afterAdaptiveContext?.fields.some((field) => field.fieldKey === "context_injury_or_safety" && field.source === "citizen_context"), "Adaptive follow-up context was not stored separately.");
+  assert(afterAdaptiveContext?.audit.some((event) => event.eventType === "context_added"), "Adaptive follow-up context was not audited.");
 
   await confirmComplaint(created.publicId);
   const afterConfirm = await getComplaintDetail(created.publicId);

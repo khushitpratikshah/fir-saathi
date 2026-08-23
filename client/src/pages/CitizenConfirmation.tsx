@@ -6,6 +6,7 @@ import FirSaathiShell from "@/components/FirSaathiShell";
 import CitizenJourneyProgress from "@/components/CitizenJourneyProgress";
 import ComplaintStatusPill from "@/components/ComplaintStatusPill";
 import RecordLoading from "@/components/RecordLoading";
+import { getAdaptiveFollowUps, getCitizenChosenContextOptions, type AdaptiveFollowUp } from "@/lib/adaptiveFollowUps";
 import { trpc } from "@/lib/trpc";
 
 const languageLabel = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી", mr: "मराठी", bn: "বাংলা", ta: "தமிழ்", te: "తెలుగు", kn: "ಕನ್ನಡ", ml: "മലയാളം", pa: "ਪੰਜਾਬੀ" } as const;
@@ -19,6 +20,9 @@ export default function CitizenConfirmation() {
   const [hasListened, setHasListened] = useState(false);
   const [fallbackAcknowledged, setFallbackAcknowledged] = useState(false);
   const [clarification, setClarification] = useState("");
+  const [followUpValue, setFollowUpValue] = useState("");
+  const [skippedFollowUps, setSkippedFollowUps] = useState<Set<string>>(() => new Set());
+  const [chosenContextQuestion, setChosenContextQuestion] = useState<AdaptiveFollowUp | null>(null);
   const selectedLanguage = detail.data?.complaint.language;
 
   const confirm = trpc.complaints.confirm.useMutation({
@@ -34,6 +38,15 @@ export default function CitizenConfirmation() {
       await utils.complaints.get.invalidate({ publicId });
       setClarification("");
       toast.success("Your clarification was added separately from the source statement.");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const addContext = trpc.complaints.addContext.useMutation({
+    onSuccess: async () => {
+      await utils.complaints.get.invalidate({ publicId });
+      setFollowUpValue("");
+      setChosenContextQuestion(null);
+      toast.success("Your detail was saved separately from the source statement.");
     },
     onError: (error) => toast.error(error.message),
   });
@@ -68,6 +81,9 @@ export default function CitizenConfirmation() {
   const draft = complaint.draftJson;
   const returnRequest = audit.find((event) => event.eventType === "returned");
   const citizenContext = fields.filter((field) => field.source === "citizen_context");
+  const nextFollowUp = getAdaptiveFollowUps(fields.map((field) => ({ key: field.fieldKey, source: field.source }))).find((question) => !skippedFollowUps.has(question.key));
+  const chosenContextOptions = getCitizenChosenContextOptions(fields.map((field) => ({ key: field.fieldKey, source: field.source })));
+  const activeFollowUp = nextFollowUp ?? chosenContextQuestion;
   const playReadBack = () => {
     if (!speechAvailable) return;
     const voice = window.speechSynthesis.getVoices().find((candidate) => candidate.lang.toLowerCase().startsWith(complaint.language));
@@ -109,9 +125,9 @@ export default function CitizenConfirmation() {
               </section>
 
               <section className="rounded-2xl border border-[#102643]/10 bg-[#f5f2eb] p-5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">What needs clarification</p>
-                {draft.missingDetails.length ? <ul className="mt-4 grid gap-2 sm:grid-cols-2">{draft.missingDetails.map((item) => <li key={item} className="rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-[#102643]">{item}</li>)}</ul> : <p className="mt-3 text-sm text-slate-600">No missing details were identified in this draft.</p>}
-                {draft.followUpQuestions.length > 0 && <div className="mt-5 rounded-xl border border-[#c64e19]/20 bg-[#fff6f1] p-4"><p className="text-xs font-bold text-[#9b3a0d]">Suggested follow-up questions</p><ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#7e3b1f]">{draft.followUpQuestions.map((question) => <li key={question}>• {question}</li>)}</ul></div>}
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Optional detail check</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">We checked the transcript first. We only ask about an important detail when it was not found in your words or already added separately.</p>
+                {activeFollowUp ? <div className="mt-4 rounded-xl border border-[#c64e19]/20 bg-[#fff6f1] p-4"><p className="text-sm font-bold text-[#8f360e]">{activeFollowUp.label}</p><p className="mt-1 text-xs leading-5 text-[#8f360e]">{activeFollowUp.helper}</p><input value={followUpValue} onChange={(event) => setFollowUpValue(event.target.value)} maxLength={activeFollowUp.maxLength} className="focus-ring mt-3 h-11 w-full rounded-lg border border-[#c64e19]/25 bg-white px-3 text-sm text-[#102643]" placeholder={activeFollowUp.placeholder} /><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><button type="button" onClick={() => nextFollowUp ? setSkippedFollowUps((current) => new Set(Array.from(current).concat(nextFollowUp.key))) : setChosenContextQuestion(null)} className="focus-ring text-xs font-bold text-slate-600 underline underline-offset-4">Skip for now</button><button type="button" disabled={followUpValue.trim().length < 2 || addContext.isPending} onClick={() => addContext.mutate({ publicId, key: activeFollowUp.key, value: followUpValue })} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#102643] px-3 text-xs font-bold text-white disabled:opacity-50">{addContext.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Add this detail</button></div></div> : <div className="mt-4 rounded-xl bg-white p-3"><p className="text-sm font-semibold text-[#15803d]">No further high-value follow-up is needed from the information you chose to provide.</p>{chosenContextOptions.length > 0 && <div className="mt-3"><p className="text-xs font-bold text-slate-600">Add another optional detail</p><div className="mt-2 flex flex-wrap gap-2">{chosenContextOptions.map((option) => <button key={option.key} type="button" onClick={() => setChosenContextQuestion(option)} className="focus-ring rounded-lg border border-[#102643]/15 px-3 py-2 text-xs font-bold text-[#102643] hover:bg-[#f5f2eb]">{option.label}</button>)}</div></div>}</div>}
               </section>
 
               {citizenContext.length > 0 && <section className="rounded-2xl border border-[#102643]/10 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Your separately provided incident context</p><p className="mt-1 text-xs leading-5 text-slate-600">These optional details are shown separately and do not alter your source statement.</p><dl className="mt-4 grid gap-3 sm:grid-cols-2">{citizenContext.map((field) => <div key={field.id} className="rounded-xl bg-[#fbfaf6] p-3"><dt className="text-[11px] font-bold text-[#102643]">{field.label}</dt><dd className="mt-1 text-sm leading-6 text-slate-600">{field.value}</dd></div>)}</dl></section>}
