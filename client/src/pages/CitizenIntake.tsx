@@ -183,7 +183,7 @@ export default function CitizenIntake() {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: { ideal: 1 }, echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true } } });
       const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
       const recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(mimeType) ? { mimeType } : undefined);
       chunksRef.current = [];
@@ -211,7 +211,13 @@ export default function CitizenIntake() {
       setAudioBlob(null);
       setRecordingSeconds(0);
       setRecordingState("recording");
-      recordingTimerRef.current = window.setInterval(() => setRecordingSeconds((seconds) => seconds + 1), 1000);
+      recordingTimerRef.current = window.setInterval(() => setRecordingSeconds((seconds) => {
+        const nextSeconds = seconds + 1;
+        if (nextSeconds === 90) {
+          toast.message("Longer recordings can be harder to transcribe. You may continue, or stop and use text for any additional detail.");
+        }
+        return nextSeconds;
+      }), 1000);
     } catch (error) {
       toast.error(error instanceof DOMException && error.name === "NotAllowedError"
         ? "Microphone permission was not granted. You can use the text option instead."
@@ -344,7 +350,7 @@ export default function CitizenIntake() {
           <span className={`${recordingState === "recording" ? "soft-pulse" : ""} grid h-11 w-11 place-items-center rounded-full bg-[#c64e19] text-white`}><Mic className="h-5 w-5" /></span>
           <div>
             <h2 className="font-bold text-[#102643]">{recordingState === "recording" ? `Recording · ${recordingSeconds}s` : recordingState === "ready" ? "Recording ready to transcribe." : "Speak naturally in your own words."}</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-600">The recording is encrypted in this browser before evidence metadata is stored.</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">For clearer words: use a quiet place, keep one speaker close to the microphone, and state names, places, dates, and numbers slowly.</p>
           </div>
         </div>
         {recordingState === "recording" ? (

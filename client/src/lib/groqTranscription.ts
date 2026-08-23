@@ -3,6 +3,6 @@ export function userFacingGroqError(message: string) {
   if (/429|rate limit|busy/i.test(message)) return "Groq is temporarily busy. Wait a moment, then retry transcription or type the statement instead.";
   if (/401|403|not configured|api key/i.test(message)) return "The server’s Groq transcription configuration needs attention. Use text input for now and contact the administrator.";
   if (/413|exceeds|too large/i.test(message)) return "This recording is too large for transcription. Record a shorter statement or use text input.";
-  if (/empty|usable transcript|did not contain/i.test(message)) return "Groq could not hear a usable statement in this recording. Try again in a quieter place or type the statement instead.";
+  if (/empty|usable transcript|did not contain|too little clear speech|likely non-speech/i.test(message)) return "Groq could not hear enough clear speech in this recording. Move closer to the microphone, reduce background noise, then retry or type the statement instead.";
   return "Groq could not prepare a transcript from this recording. You can safely retry or type the statement instead.";
 }

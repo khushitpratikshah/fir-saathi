@@ -299,7 +299,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
   if (!rawAudio.length || !encryptedAudio.length) throw new Error("The recorded audio could not be read.");
   if (rawAudio.length > 12 * 1024 * 1024) throw new Error("For this prototype, audio recordings must be 12 MB or smaller.");
   if (hashBytes(encryptedAudio) !== input.ciphertextSha256) throw new Error("The encrypted audio fingerprint did not match the uploaded record.");
-  const transcription = await groqTranscribe({ audio: rawAudio, mimeType: input.mimeType, language: input.language, prompt: "Transcribe exactly what the citizen says. Do not translate, summarise, formalise, correct, or add facts." });
+  const transcription = await groqTranscribe({ audio: rawAudio, mimeType: input.mimeType, language: input.language, prompt: `Citizen complaint statement in ${input.language}. Preserve words, code-switching, names, places, dates, digits, vehicle details, and spelling as heard. Do not translate, summarise, formalise, correct, or add facts.` });
   const sourceTranscript = transcription.text.trim();
   if (!sourceTranscript) throw new Error("The recording did not produce a usable source transcript. Please try again or use the text option.");
 
@@ -316,7 +316,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
     await supabaseRequest("fir_saathi_audio_evidence", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, storage_key: evidence.key, mime_type: input.mimeType, byte_size: encryptedAudio.length, sha256: input.ciphertextSha256, encryption_metadata: { algorithm: "AES-GCM", iv: input.ivBase64, encrypted: true }, tamper_status: "match" }) });
     await Promise.all([
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created voice draft", reason: null }),
-      insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype transcription service", actor_role: "system", event_type: "transcribed", field_key: null, previous_value: null, new_value: `Source transcript captured (${sourceTranscript.length} characters); raw audio not persisted`, reason: null }),
+      insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype transcription service", actor_role: "system", event_type: "transcribed", field_key: null, previous_value: null, new_value: `Source transcript captured (${sourceTranscript.length} characters); ${transcription.quality.assessment === "review" ? "automated quality indicators request careful citizen read-back" : "automated quality indicators did not request extra read-back"}; raw audio not persisted`, reason: null }),
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype evidence service", actor_role: "system", event_type: "evidence_checked", field_key: null, previous_value: null, new_value: "Encrypted ciphertext hash matched at capture", reason: null }),
     ]);
     await draftComplaint(publicId);
@@ -325,7 +325,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
     await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "DELETE", prefer: "return=minimal" });
     throw error;
   }
-  return { publicId, transcript: sourceTranscript, detectedLanguage: transcription.language };
+  return { publicId, transcript: sourceTranscript, detectedLanguage: transcription.language, quality: transcription.quality };
 }
 
 export async function verifyEvidenceHash(input: { publicId: string; evidenceId: string; actorLabel: string }) {

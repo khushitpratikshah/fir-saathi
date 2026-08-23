@@ -4,6 +4,35 @@ const TRANSCRIPTION_MODEL = "whisper-large-v3";
 
 type JsonSchema = Record<string, unknown>;
 
+type TranscriptSegment = {
+  avg_logprob?: number;
+  compression_ratio?: number;
+  no_speech_prob?: number;
+};
+
+export type TranscriptionQuality = {
+  assessment: "clear" | "review" | "retry";
+  segmentCount: number;
+  lowConfidenceSegments: number;
+  likelyNonSpeechSegments: number;
+  unusualCompressionSegments: number;
+};
+
+export function assessTranscriptionQuality(input: { text: string; segments?: TranscriptSegment[] }): TranscriptionQuality {
+  const segments = Array.isArray(input.segments) ? input.segments : [];
+  const lowConfidenceSegments = segments.filter((segment) => typeof segment.avg_logprob === "number" && segment.avg_logprob <= -0.85).length;
+  const likelyNonSpeechSegments = segments.filter((segment) => typeof segment.no_speech_prob === "number" && segment.no_speech_prob >= 0.72).length;
+  const unusualCompressionSegments = segments.filter((segment) => typeof segment.compression_ratio === "number" && segment.compression_ratio >= 2.7).length;
+  const shortTranscript = Array.from(input.text.trim()).length < 8;
+  const mostlyNonSpeech = segments.length > 0 && likelyNonSpeechSegments >= Math.ceil(segments.length / 2);
+  const assessment = shortTranscript || mostlyNonSpeech
+    ? "retry"
+    : lowConfidenceSegments > 0 || likelyNonSpeechSegments > 0 || unusualCompressionSegments > 0
+      ? "review"
+      : "clear";
+  return { assessment, segmentCount: segments.length, lowConfidenceSegments, likelyNonSpeechSegments, unusualCompressionSegments };
+}
+
 function groqHeaders() {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("Portable AI provider is not configured.");
@@ -78,6 +107,8 @@ export async function groqTranscribe(input: { audio: Buffer; mimeType: string; l
   formData.append("language", input.language);
   formData.append("prompt", input.prompt);
   formData.append("response_format", "verbose_json");
+  formData.append("timestamp_granularities[]", "segment");
+  formData.append("timestamp_granularities[]", "word");
   formData.append("temperature", "0");
 
   const response = await requestWithTimeout(`${GROQ_BASE_URL}/audio/transcriptions`, {
@@ -86,7 +117,10 @@ export async function groqTranscribe(input: { audio: Buffer; mimeType: string; l
     body: formData,
   }, 45_000);
   if (!response.ok) throw new Error(`Portable transcription provider returned ${response.status}.`);
-  const payload = await response.json() as { text?: string; language?: string };
+  const payload = await response.json() as { text?: string; language?: string; segments?: TranscriptSegment[] };
   if (typeof payload.text !== "string" || !payload.text.trim()) throw new Error("The recording did not contain a usable transcript.");
-  return { text: payload.text.trim(), language: payload.language ?? input.language };
+  const text = payload.text.trim();
+  const quality = assessTranscriptionQuality({ text, segments: payload.segments });
+  if (quality.assessment === "retry") throw new Error("The recording appears to contain too little clear speech. Please record again in a quieter space or use text input.");
+  return { text, language: payload.language ?? input.language, quality };
 }

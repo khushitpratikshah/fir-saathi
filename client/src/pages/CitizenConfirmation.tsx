@@ -80,6 +80,7 @@ export default function CitizenConfirmation() {
   const { complaint, fields, audit } = detail.data;
   const draft = complaint.draftJson;
   const returnRequest = audit.find((event) => event.eventType === "returned");
+  const needsCarefulTranscriptReview = audit.some((event) => event.eventType === "transcribed" && /careful citizen read-back/i.test(event.newValue ?? ""));
   const citizenContext = fields.filter((field) => field.source === "citizen_context");
   const nextFollowUp = getAdaptiveFollowUps(fields.map((field) => ({ key: field.fieldKey, source: field.source })), complaint.sourceTranscript).find((question) => !skippedFollowUps.has(question.key));
   const chosenContextOptions = getCitizenChosenContextOptions(fields.map((field) => ({ key: field.fieldKey, source: field.source })));
@@ -114,6 +115,8 @@ export default function CitizenConfirmation() {
                 <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Your source statement</p><p className="mt-1 text-xs font-semibold text-[#c64e19]">{languageName}</p></div><span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#15803d]"><ShieldCheck className="h-3.5 w-3.5" /> Kept separately</span></div>
                 <blockquote lang={complaint.language} className="mt-5 border-l-2 border-[#c64e19] pl-4 text-base leading-8 text-[#102643]">{complaint.sourceTranscript}</blockquote>
               </section>
+
+              {needsCarefulTranscriptReview && <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5"><div className="flex gap-3"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" /><div><p className="text-sm font-bold text-amber-950">Please check this transcript carefully.</p><p className="mt-1 text-xs leading-5 text-amber-900">The speech service detected one or more unclear audio segments. It did not change your words. Use the read-back below and return to intake for a new recording if the source text is not what you said.</p></div></div></section>}
 
               <section className="rounded-2xl border border-[#102643]/10 bg-[#f5f2eb] p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

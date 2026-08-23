@@ -113,3 +113,7 @@
 - [x] Add transparent AI source-coverage and uncertainty guidance without inventing, translating, or deciding complaint facts.
 - [x] Render a persistent source-coverage panel with exact source quotes, fixed uncertainty categories, and clear availability feedback.
 - [x] Push the completed feature set and verify the configured Raspberry Pi runner deploys it successfully.
+- [x] Improve transcription capture quality, transparent low-quality recovery, and source-preserving transcript review; then push and verify automatic Raspberry Pi deployment.
+- [x] Capture Groq segment and word metadata, expose a conservative quality assessment, and require a retry only when speech is likely unusable.
+- [x] Improve browser microphone constraints and give citizens actionable live recording guidance plus listen-back recovery.
+- [x] Show an explicit transcription-quality cue at confirmation without changing the immutable source transcript.
