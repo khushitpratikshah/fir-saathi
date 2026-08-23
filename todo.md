@@ -82,4 +82,4 @@
 - [x] Add reusable plain-language citizen progress, resume, and post-confirmation review-status experiences.
 - [x] Replace the narrow demonstrative BNS list with source-linked, evidence-gated review cards and safer uncertainty handling.
 - [x] Add bounded AI assistance for missing-detail questions, selected-language question phrasing, source-evidence mapping, and constable review briefs.
-- [ ] Validate the complete usability and review-support update, synchronize the private repository, and save a checkpoint.
+- [x] Validate the complete usability and review-support update, synchronize the private repository, and save a checkpoint.
