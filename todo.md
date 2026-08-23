@@ -48,10 +48,10 @@
 - [x] Compile, test, and browser-validate officer access, timeline rendering, and theme persistence before finalising this enhancement.
 - [x] Validate role behavior, timeline accuracy, dark-workspace accessibility, and responsive application journeys.
 - [x] Save a checkpoint for the roles, timeline, and dark-workspace enhancement.
-- [ ] Inspect Supabase Auth configuration and select a portable email sign-in flow.
-- [ ] Replace Manus account/session usage with Supabase Auth and server-verified role profiles.
-- [ ] Preserve server-side constable authorization, timeline access, and citizen public workflow under the portable session model.
-- [ ] Update the self-hosting documentation and automated tests for Supabase-based authentication.
-- [ ] Validate signup/sign-in, sign-out, citizen access, and constable role enforcement in the browser.
-- [ ] Create and push the completed project to a private GitHub repository.
-- [ ] Save a final checkpoint after the portable-auth migration and GitHub publication.
+- [x] Inspect Supabase Auth configuration and select a portable email sign-in flow.
+- [x] Replace Manus account/session usage with Supabase Auth and server-verified role profiles.
+- [x] Preserve server-side constable authorization, timeline access, and citizen public workflow under the portable session model.
+- [x] Update the self-hosting documentation and automated tests for Supabase-based authentication.
+- [x] Validate the portable sign-in UI, sign-out cookie handling, citizen access, Supabase Auth connectivity, and constable role enforcement.
+- [x] Create and push the completed project to a private GitHub repository.
+- [x] Save a final checkpoint after the portable-auth migration and GitHub publication.
