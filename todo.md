@@ -31,3 +31,8 @@
 - [x] Document environment variables and self-hosting requirements for external deployment.
 - [x] Add an accessible animated Groq transcription progress state with elapsed-time feedback.
 - [x] Add specific, actionable Groq transcription error messages with retry and text-entry recovery actions.
+- [x] Reframe the landing page and shared navigation around the Intel AI Impact Fest demo story and AI-safety proof points.
+- [x] Add expressive animated waveform, live transcript, and AI-analysis feedback to the real citizen intake journey.
+- [x] Add and validate high-impact multilingual guided demo states that work without external audio or AI-provider availability.
+- [x] Elevate the constable workspace with an impact dashboard, explainable AI decision trail, and demo-ready interactions.
+- [x] Validate the end-to-end showcase flow at desktop and mobile sizes, then checkpoint the Impact Fest demonstration update.

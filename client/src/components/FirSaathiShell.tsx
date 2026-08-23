@@ -8,6 +8,7 @@ type ShellProps = PropsWithChildren<{
 }>;
 
 const navItems = [
+  { href: "/impact-demo", label: "Guided story" },
   { href: "/intake", label: "Citizen intake" },
   { href: "/officer", label: "Constable review" },
 ];
@@ -23,7 +24,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#c64e19] text-xs font-bold tracking-[-0.05em] text-white shadow-[0_7px_18px_rgba(198,78,25,0.28)]">FS</span>
             <span className="leading-tight">
               <span className="block text-sm font-bold tracking-[-0.02em]">FIR Saathi</span>
-              <span className={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>Prototype workspace</span>
+              <span className={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>Impact Fest showcase</span>
             </span>
           </Link>
 

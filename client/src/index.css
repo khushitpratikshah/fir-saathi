@@ -113,6 +113,8 @@ button:disabled { cursor: not-allowed; }
   .soft-pulse { animation: soft-pulse 2.2s var(--ease-in-out) infinite; }
   .pressable { transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), background-color 160ms var(--ease-out); }
   .pressable:active { transform: scale(0.975); }
+  .impact-orbit { animation: impact-float 5.5s var(--ease-in-out) infinite; }
+  .audio-wave-bar-active { animation: audio-wave 980ms var(--ease-in-out) infinite alternate; animation-delay: var(--wave-delay); }
 }
 
 @keyframes fade-up {
@@ -123,6 +125,16 @@ button:disabled { cursor: not-allowed; }
 @keyframes soft-pulse {
   0%, 100% { opacity: 0.82; }
   50% { opacity: 1; }
+}
+
+@keyframes audio-wave {
+  0% { height: calc(var(--wave-height) * 0.32); opacity: 0.4; }
+  100% { height: var(--wave-height); opacity: 1; }
+}
+
+@keyframes impact-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
