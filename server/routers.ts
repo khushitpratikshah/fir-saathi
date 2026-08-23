@@ -4,6 +4,7 @@ import { adminProcedure, constableProcedure, publicProcedure, router } from "./_
 import { addCitizenClarification, addPreConfirmationContext, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, resumeIntakeDraft, returnComplaint, saveIntakeDraft, verifyComplaint, verifyEvidenceHash } from "./db";
 import { clearPortableSession, getPortableUser, storePortableSession } from "./supabaseAuth";
 import { SUPPORTED_LANGUAGES } from "../shared/firSaathi";
+import { generateSourceCoverage } from "./sourceCoverage";
 
 const publicIdSchema = z.string().trim().min(4).max(32);
 const citizenContextSchema = z.object({
@@ -70,6 +71,9 @@ export const appRouter = router({
       } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); }
     }),
     create: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), consent: z.literal(true), context: citizenContextSchema, resumeCode: z.string().trim().min(12).max(100).optional() })).mutation(async ({ input }) => { try { return await createComplaint(input); } catch (error) { return databaseError(error); } }),
+    previewSourceCoverage: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(6_000) })).mutation(async ({ input }) => {
+      try { return await generateSourceCoverage({ language: input.language, sourceStatement: input.sourceTranscript }); } catch (error) { return databaseError(error); }
+    }),
     saveIntakeDraft: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), context: citizenContextSchema, currentStep: z.number().int().min(1).max(8), consent: z.literal(true), resumeCode: z.string().trim().min(12).max(100).optional() })).mutation(async ({ input }) => { try { return await saveIntakeDraft(input); } catch (error) { return databaseError(error); } }),
     resumeIntakeDraft: publicProcedure.input(z.object({ resumeCode: z.string().trim().min(12).max(100) })).query(async ({ input }) => { try { return await resumeIntakeDraft(input.resumeCode); } catch (error) { return databaseError(error); } }),
     draft: publicProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { return await draftComplaint(input.publicId); } catch (error) { return databaseError(error); } }),

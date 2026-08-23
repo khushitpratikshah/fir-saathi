@@ -107,3 +107,9 @@
 - [x] Align the guarded deployment workflow with the registered Raspberry Pi runner's built-in ARM64 label and verify an automatic rollout.
 - [x] Bootstrap the protected Pi checkout with the committed deployment script before retrying the first runner deployment.
 - [x] Polish FIR Saathi’s landing and application UI for clearer visual hierarchy, richer interaction feedback, and dependable responsive presentation.
+- [x] Add practical source-preserving citizen-intake and constable-review usability features, then push and verify automatic Raspberry Pi deployment.
+- [x] Add citizen audio listen-back, transparent typed-statement readiness feedback, and a private resume-code copy action.
+- [x] Add constable queue focus shortcuts for ready-for-review and citizen-confirmation records.
+- [x] Add transparent AI source-coverage and uncertainty guidance without inventing, translating, or deciding complaint facts.
+- [x] Render a persistent source-coverage panel with exact source quotes, fixed uncertainty categories, and clear availability feedback.
+- [ ] Push the completed feature set and verify the configured Raspberry Pi runner deploys it successfully.
