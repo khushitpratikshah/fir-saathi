@@ -1,34 +1,35 @@
 # Hosting FIR Saathi on a Raspberry Pi 5
 
-This guide deploys the **existing FIR Saathi Express/React application** on a Raspberry Pi 5 with 8 GB RAM. The Pi runs the website and its server-side API only. **Supabase remains the database, authentication, and encrypted-evidence storage provider; Groq remains the drafting and transcription provider.** No PostgreSQL, MySQL, Docker, or local AI model is installed on the Pi.
+This guide deploys the **existing FIR Saathi Express/React application** on a Raspberry Pi 5 with 8 GB RAM. The Pi runs the website and its server-side API only. **Supabase remains the database, authentication, and encrypted-evidence storage provider; Groq remains the drafting and transcription provider.** No PostgreSQL, MySQL, Docker, local AI model, Caddy, public IP, router port-forwarding, or inbound web port is required.
 
 > **Prototype boundary.** FIR Saathi is a demonstration workflow. Do not use this deployment to receive real emergency reports, legal complaints, or sensitive evidence unless its security, privacy, retention, accessibility, and legal controls have been independently reviewed.
 
 ## 1. What you will build
 
-The recommended setup is a small, maintainable native deployment. `systemd` keeps FIR Saathi running after reboots, while Caddy terminates HTTPS and forwards requests only to the local Node server.
+The recommended setup is a small, maintainable native deployment. `systemd` keeps FIR Saathi and the Cloudflare connector running after reboots. `cloudflared` creates an **outbound-only** connection from the Pi to Cloudflare; Cloudflare serves HTTPS at your domain and forwards traffic through that tunnel to the local Node server.
 
 ```text
 Citizen browser
-      │ HTTPS :443
+      │ HTTPS
       ▼
-Domain DNS → home router → Raspberry Pi 5
-                              │
-                              ▼
-                        Caddy reverse proxy
-                              │ HTTP 127.0.0.1:3000
-                              ▼
-                   FIR Saathi Node/Express server
-                         │                 │
-                         ▼                 ▼
-                 Supabase cloud        Groq cloud
-        data/auth/private evidence   drafting/transcription
+Your domain on Cloudflare
+      │ Cloudflare Tunnel
+      ▼
+Raspberry Pi 5 → cloudflared → HTTP 127.0.0.1:3000
+                                     │
+                                     ▼
+                          FIR Saathi Node/Express server
+                                │                 │
+                                ▼                 ▼
+                        Supabase cloud        Groq cloud
+               data/auth/private evidence   drafting/transcription
 ```
 
 | Component | Runs on the Pi? | Notes |
 |---|---:|---|
 | FIR Saathi React build and Express/tRPC server | Yes | Native Node.js process managed by `systemd`. |
-| HTTPS certificates and reverse proxy | Yes | Caddy manages this. |
+| Public HTTPS and tunnel edge | Cloudflare | Cloudflare manages the public certificate and hostname. |
+| Cloudflare connector | Yes | `cloudflared` makes an outbound tunnel to the local server. |
 | Supabase database, Auth, and evidence bucket | No | Keep the existing hosted Supabase project. |
 | Groq drafting and transcription | No | Keep the existing Groq API account and key. |
 | Local database or AI model | No | Do not install either for this architecture. |
@@ -42,9 +43,9 @@ You need the following before exposing the app publicly.
 | Requirement | Why it is needed |
 |---|---|
 | Raspberry Pi OS **64-bit** | Raspberry Pi documents that its 64-bit OS supports Pi 5-class 64-bit hardware.[1] |
-| A domain name, for example `fir.example.com` | Required for publicly trusted HTTPS certificates. |
-| Router access | To reserve the Pi’s LAN address and forward TCP ports 80 and 443. |
-| Publicly reachable IP address | Direct HTTPS requires DNS to reach your router. If your ISP uses CGNAT, use a reverse-tunnel product or request a public IP instead of attempting port forwarding. |
+| A domain on Cloudflare, for example `fir.example.com` | Cloudflare Tunnel creates a published hostname within an active Cloudflare zone. |
+| Router access | Only to reserve the Pi’s LAN address if you want predictable local SSH access. No web port forwarding is needed. |
+| Outbound internet access from the Pi | `cloudflared` needs to reach Cloudflare; Cloudflare notes that restrictive firewalls should allow outbound port 7844.[5] |
 | Existing private GitHub repository access | The FIR Saathi repository is private; use a read-only deploy key on the Pi. |
 | Existing Supabase project and Groq key | These are the external services the application needs. |
 | Reliable power and storage | Prefer the official Pi power supply and an SSD or high-quality storage; unexpected power loss can corrupt a microSD card. |
@@ -250,79 +251,49 @@ curl -I http://127.0.0.1:3000
 
 If `curl` succeeds locally, the Node application is running. Do not open port 3000 in the router or firewall.
 
-## 9. Install Caddy and configure HTTPS
+## 9. Create the Cloudflare Tunnel and publish your domain
 
-Install Caddy using its current official package instructions for Debian-based Linux, or use the distribution package if it is available:
+First, make sure your domain is an **active Cloudflare zone**. If you purchased it elsewhere, add the domain to Cloudflare and change the registrar nameservers to the pair Cloudflare gives you. Do not create a public `A` or `AAAA` record pointing at your home IP for this application.
 
-```bash
-sudo apt update
-sudo apt install -y caddy
-```
+In the Cloudflare dashboard:
 
-If `apt` cannot find Caddy, use the current instructions at the official Caddy install page rather than copying an unverified third-party repository command.[5]
+1. Open **Networking → Tunnels** and choose **Create a tunnel**.
+2. Name it `fir-saathi-pi`.
+3. Choose **Linux** and copy the installation command Cloudflare displays for the connector. The command contains a private tunnel token; run it only in your Pi’s SSH session and never store or share the token in the repository.
+4. After the connector shows **Healthy**, open that tunnel’s **Routes** tab and choose **Add route → Published application**.
+5. Use a hostname such as `fir.yourdomain.com` and set **Service URL** to `http://127.0.0.1:3000`.
+6. Save the route. Cloudflare creates the required DNS route for the tunnel.
 
-Create the Caddy configuration:
+Cloudflare documents that a published application maps a public hostname to a local service URL, and that the dashboard creates the DNS route for that hostname.[5] A remotely managed tunnel requires only its tunnel token to run, so treat that token as a server secret.[6]
 
-```bash
-sudo nano /etc/caddy/Caddyfile
-```
-
-Replace the file with this, substituting your actual domain:
-
-```caddyfile
-fir.example.com {
-    encode zstd gzip
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
-Validate and enable it:
+For Raspberry Pi OS ARM64, use the **exact connector-install command shown by the Cloudflare dashboard**. It installs or configures the correct `cloudflared` build and normally registers it as a Linux service. After it completes, verify the connector:
 
 ```bash
-sudo caddy validate --config /etc/caddy/Caddyfile
-sudo systemctl enable --now caddy
-sudo systemctl reload caddy
-sudo systemctl status caddy --no-pager
+sudo systemctl status cloudflared --no-pager
+sudo journalctl -u cloudflared -f
 ```
 
-Caddy’s reverse-proxy documentation confirms that a Caddyfile can proxy to a local HTTP backend and that, when configured with a real hostname, Caddy automatically obtains and renews publicly trusted HTTPS certificates if DNS points to the machine and ports 80 and 443 are reachable.[6]
+> Do not use a Quick Tunnel (`trycloudflare.com`) for FIR Saathi. Cloudflare identifies Quick Tunnels as development-only and limits their features and concurrent connections.[5]
 
-## 10. DNS, router, and firewall configuration
+## 10. Firewall and domain security with Cloudflare Tunnel
 
-At your DNS provider, create an `A` record for the hostname, for example:
-
-```text
-fir.example.com  A  YOUR_PUBLIC_IPV4_ADDRESS
-```
-
-If you intentionally use IPv6, add an `AAAA` record only after confirming the Pi and router firewall accept inbound TCP 80 and 443 over IPv6 as well.
-
-In the home router, forward only these ports to the Pi’s **reserved LAN address**:
-
-| WAN port | Protocol | Pi destination | Purpose |
-|---:|---|---|---|
-| 80 | TCP | `192.168.1.50:80` | Caddy HTTP validation and HTTPS redirect. |
-| 443 | TCP | `192.168.1.50:443` | Public HTTPS traffic. |
-
-Configure the Pi firewall after allowing SSH first. Keep an existing SSH session open while enabling UFW, so an incorrect rule does not lock you out.
+Cloudflare Tunnel removes the need to open TCP 80, 443, or 3000 on the Pi or router. Keep the Pi inbound firewall closed except for the LAN-only management path you choose. Configure UFW after allowing SSH first, and keep the current SSH session open while enabling it.
 
 ```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw allow OpenSSH
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp
 sudo ufw enable
 sudo ufw status verbose
 ```
 
-Do **not** forward or allow port 3000, the Supabase service-role key, SSH from the entire internet, a database port, or the Caddy admin API. Prefer SSH access from your LAN or a VPN such as Tailscale/WireGuard.
+Replace `192.168.1.0/24` with your own LAN range. If you use Tailscale or WireGuard for administration, permit SSH only from that private network instead. **Do not add UFW rules or router port forwards for 80, 443, or 3000.** The Pi initiates an outbound connection to Cloudflare instead.
 
-If the ISP uses carrier-grade NAT (CGNAT), DNS may point to your router but connections will never reach it. In that case, use a reputable reverse tunnel or obtain a public IP; do not weaken the firewall or expose port 3000 as a workaround.
+For an additional protection layer, configure **Cloudflare Access** before public testing if the site should be restricted to a small group. If the citizen-facing prototype must stay public, at minimum enable Cloudflare’s standard security settings and use strong Cloudflare account authentication.
 
 ## 11. First production test
 
-After DNS propagation and port forwarding, test from a network that is **not** your home Wi-Fi (for example, mobile data):
+After the tunnel route is healthy, test from a network that is **not** your home Wi-Fi (for example, mobile data):
 
 ```bash
 curl -I https://fir.example.com
@@ -341,8 +312,8 @@ Useful log commands:
 
 ```bash
 sudo journalctl -u fir-saathi -f
-sudo journalctl -u caddy -f
-sudo systemctl status fir-saathi caddy --no-pager
+sudo journalctl -u cloudflared -f
+sudo systemctl status fir-saathi cloudflared --no-pager
 ```
 
 ## 12. Safe updates and rollback
@@ -384,22 +355,22 @@ The Pi does not hold the main complaint database or evidence objects. Your opera
 | `/etc/fir-saathi.env` | Encrypted offline backup; never store it in Git. Rotate any exposed key immediately. |
 | GitHub deploy key | Keep a secure backup or create a new key if the Pi is replaced. Remove the old key from GitHub when retiring the device. |
 | Supabase database and private evidence bucket | Use Supabase’s backup/export and retention controls. The Pi cannot replace these backups. |
-| Router/DNS settings | Record the reserved LAN IP, port forwards, domain, and registrar account recovery details. |
+| Cloudflare/DNS settings | Record the Cloudflare account recovery details, tunnel name, published hostname, and domain registrar access. Do not record the tunnel token in plain text. |
 | Power and uptime | Use a quality supply; consider a UPS if service continuity matters. Monitor `systemctl` status and disk free space. |
 
-Review the following monthly: Raspberry Pi OS updates, Node version, system logs, UFW rules, Caddy certificate status, Supabase project status, Groq usage limits, deploy keys, and all server-side secrets. Rotate `GROQ_API_KEY` or `SUPABASE_SERVICE_ROLE_KEY` immediately if either might have been exposed.
+Review the following monthly: Raspberry Pi OS updates, Node version, `fir-saathi` and `cloudflared` logs, UFW rules, Cloudflare tunnel health, Supabase project status, Groq usage limits, deploy keys, and all server-side secrets. Rotate the Cloudflare tunnel token, `GROQ_API_KEY`, or `SUPABASE_SERVICE_ROLE_KEY` immediately if any may have been exposed.
 
 ## 14. Troubleshooting
 
 | Symptom | Check | Likely fix |
 |---|---|---|
 | `fir-saathi` will not start | `sudo journalctl -u fir-saathi -n 100 --no-pager` | Check `/etc/fir-saathi.env`, Node 22 availability for `firsaathi`, and that `pnpm build` completed. |
-| Caddy returns 502 | `curl -I http://127.0.0.1:3000` and `systemctl status fir-saathi` | Restore the Node service first; Caddy can only proxy to a running local server. |
-| HTTPS certificate fails | `sudo journalctl -u caddy -n 100 --no-pager` | Confirm DNS resolves publicly to the correct WAN IP and TCP 80/443 reach the Pi. |
+| Tunnel route returns an error | `curl -I http://127.0.0.1:3000`, `systemctl status fir-saathi cloudflared` | Restore the Node service first, then inspect the Cloudflare Tunnel health and published-route configuration. |
+| Tunnel is unhealthy | `sudo journalctl -u cloudflared -n 100 --no-pager` | Verify the connector token, outbound internet access, and firewall egress to Cloudflare port 7844. |
 | Sign-in/reset link returns to localhost | Supabase **Authentication → URL Configuration** | Set Site URL and exact production redirect URL as described in section 7. |
 | Groq drafting/transcription fails | `journalctl -u fir-saathi -f` | Verify server-only `GROQ_API_KEY`, outbound internet access, and Groq account status; do not move the key into browser variables. |
 | Supabase data/evidence calls fail | Server logs and Supabase dashboard | Verify `SUPABASE_URL`, service-role key, migrations, RLS, and private bucket configuration. |
-| Site works on home Wi-Fi but not mobile data | Test public DNS and router settings | Check port forwards, firewall, CGNAT, and hairpin-NAT differences. |
+| Site works locally but not through the domain | Check the Cloudflare dashboard route and tunnel health | Confirm the hostname is attached to the correct tunnel and that the service URL is exactly `http://127.0.0.1:3000`. |
 
 ## References
 
@@ -411,6 +382,6 @@ Review the following monthly: Raspberry Pi OS updates, Node version, system logs
 
 [4] [Supabase Docs, *Redirect URLs*](https://supabase.com/docs/guides/auth/redirect-urls)
 
-[5] [Caddy Documentation, *Install Caddy*](https://caddyserver.com/docs/install)
+[5] [Cloudflare Docs, *Set up Cloudflare Tunnel*](https://developers.cloudflare.com/tunnel/setup/)
 
-[6] [Caddy Documentation, *Reverse proxy quick-start*](https://caddyserver.com/docs/quick-starts/reverse-proxy)
+[6] [Cloudflare Docs, *Tunnel tokens*](https://developers.cloudflare.com/tunnel/advanced/tunnel-tokens/)
