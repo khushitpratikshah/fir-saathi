@@ -117,3 +117,5 @@
 - [x] Capture Groq segment and word metadata, expose a conservative quality assessment, and require a retry only when speech is likely unusable.
 - [x] Improve browser microphone constraints and give citizens actionable live recording guidance plus listen-back recovery.
 - [x] Show an explicit transcription-quality cue at confirmation without changing the immutable source transcript.
+- [x] Add accessible, privacy-preserving live audio-level indicators to the voice recording interface, then push and verify automatic Raspberry Pi deployment.
+- [ ] Push the live audio-level indicator update and verify its Raspberry Pi runner deployment succeeds.

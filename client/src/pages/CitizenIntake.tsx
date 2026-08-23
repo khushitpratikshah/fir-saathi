@@ -8,6 +8,7 @@ import GroqTranscriptionStatus from "@/components/GroqTranscriptionStatus";
 import { trpc } from "@/lib/trpc";
 import { userFacingGroqError } from "@/lib/groqTranscription";
 import { getSourceStatementReadiness } from "@/lib/sourceStatementReadiness";
+import { getAudioLevelFeedback, type AudioLevelFeedback } from "@/lib/audioLevel";
 
 const languages = [
   { code: "en", label: "English", native: "English" },
@@ -68,6 +69,7 @@ export default function CitizenIntake() {
   const [recordingState, setRecordingState] = useState<"idle" | "recording" | "ready">("idle");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [audioLevel, setAudioLevel] = useState<AudioLevelFeedback>({ level: 0, state: "silent", label: "Start recording to check your microphone level." });
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -81,6 +83,11 @@ export default function CitizenIntake() {
   const voiceTimeoutRef = useRef<number | null>(null);
   const activeVoiceAttemptRef = useRef<string | null>(null);
   const audioPreviewUrlRef = useRef<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const analyserSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const levelAnimationFrameRef = useRef<number | null>(null);
+  const lastLevelUpdateRef = useRef(0);
   const [, navigate] = useLocation();
   const [storedResumeCode] = useState(() => window.sessionStorage.getItem("fir-saathi-resume-code") ?? "");
   const restoredDraft = trpc.complaints.resumeIntakeDraft.useQuery(
@@ -164,10 +171,59 @@ export default function CitizenIntake() {
     setVoiceState("failed");
     setVoiceError(message);
   };
+  const stopAudioLevelMonitor = () => {
+    if (levelAnimationFrameRef.current) window.cancelAnimationFrame(levelAnimationFrameRef.current);
+    levelAnimationFrameRef.current = null;
+    analyserSourceRef.current?.disconnect();
+    analyserRef.current?.disconnect();
+    const audioContext = audioContextRef.current;
+    if (audioContext && audioContext.state !== "closed") void audioContext.close();
+    analyserSourceRef.current = null;
+    analyserRef.current = null;
+    audioContextRef.current = null;
+    lastLevelUpdateRef.current = 0;
+    setAudioLevel({ level: 0, state: "silent", label: "Recording stopped. Listen back before sending it for transcript review." });
+  };
+  const startAudioLevelMonitor = (stream: MediaStream) => {
+    stopAudioLevelMonitor();
+    if (!window.AudioContext) return;
+    try {
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.72;
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      analyserSourceRef.current = source;
+      const waveform = new Uint8Array(analyser.fftSize);
+      const updateLevel = (now: number) => {
+        analyser.getByteTimeDomainData(waveform);
+        let squaredSum = 0;
+        let peak = 0;
+        waveform.forEach((sample) => {
+          const normalized = (sample - 128) / 128;
+          squaredSum += normalized * normalized;
+          peak = Math.max(peak, Math.abs(normalized));
+        });
+        if (now - lastLevelUpdateRef.current >= 80) {
+          setAudioLevel(getAudioLevelFeedback(Math.sqrt(squaredSum / waveform.length), peak));
+          lastLevelUpdateRef.current = now;
+        }
+        levelAnimationFrameRef.current = window.requestAnimationFrame(updateLevel);
+      };
+      void audioContext.resume();
+      levelAnimationFrameRef.current = window.requestAnimationFrame(updateLevel);
+    } catch {
+      setAudioLevel({ level: 0, state: "silent", label: "Live microphone level is unavailable in this browser. You can still record and listen back." });
+    }
+  };
 
   useEffect(() => () => {
     clearRecordingTimer();
     clearPreparationTimers();
+    stopAudioLevelMonitor();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     if (audioPreviewUrlRef.current) URL.revokeObjectURL(audioPreviewUrlRef.current);
@@ -190,6 +246,7 @@ export default function CitizenIntake() {
       setVoiceError(null);
       setVoiceState("idle");
       streamRef.current = stream;
+      startAudioLevelMonitor(stream);
       recorderRef.current = recorder;
       recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
       recorder.onstop = () => {
@@ -200,6 +257,7 @@ export default function CitizenIntake() {
         setAudioPreviewUrl(nextPreviewUrl);
         setAudioBlob(nextAudio);
         setRecordingState("ready");
+        stopAudioLevelMonitor();
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         clearRecordingTimer();
@@ -219,6 +277,7 @@ export default function CitizenIntake() {
         return nextSeconds;
       }), 1000);
     } catch (error) {
+      stopAudioLevelMonitor();
       toast.error(error instanceof DOMException && error.name === "NotAllowedError"
         ? "Microphone permission was not granted. You can use the text option instead."
         : "The microphone could not be started. Please use the text option instead.");
@@ -360,6 +419,7 @@ export default function CitizenIntake() {
         )}
       </div>
       {audioPreviewUrl && <div className="mt-4 rounded-xl border border-[#102643]/10 bg-white/80 p-3"><p className="flex items-center gap-2 text-xs font-bold text-[#102643]"><Headphones className="h-4 w-4 text-[#c64e19]" />Listen back before transcript check</p><audio controls preload="metadata" src={audioPreviewUrl} className="mt-3 h-9 w-full" aria-label="Recorded statement preview" /></div>}
+      {recordingState === "recording" && <section className="mt-4 rounded-xl border border-[#102643]/10 bg-white/80 p-3" aria-label="Live microphone level"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#102643]">Live voice level</p><p className={`mt-1 text-xs leading-5 ${audioLevel.state === "silent" ? "text-amber-800" : audioLevel.state === "loud" ? "text-[#a83d10]" : "text-emerald-800"}`} aria-live="polite">{audioLevel.label}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${audioLevel.state === "silent" ? "bg-amber-500" : audioLevel.state === "loud" ? "bg-[#c64e19]" : "bg-emerald-500"}`} aria-hidden="true" /></div><div className="mt-3 flex h-9 items-end gap-1" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(audioLevel.level * 100)} aria-valuetext={audioLevel.label}>{Array.from({ length: 16 }, (_, index) => <span key={index} className={`w-full rounded-sm transition-transform duration-100 ${audioLevel.state === "loud" && index > 12 ? "bg-[#c64e19]" : audioLevel.state === "silent" ? "bg-amber-300" : "bg-emerald-500"}`} style={{ height: `${24 + ((index % 5) * 14)}%`, opacity: Math.max(0.16, audioLevel.level * 1.65 - index / 23) }} />)}</div><p className="mt-2 text-[11px] leading-5 text-slate-500">This meter reads the microphone locally for live feedback only. It does not store or transmit audio-level data.</p></section>}
       <GroqTranscriptionStatus state={voiceState} seconds={preparingSeconds} error={voiceError} languageLabel={selectedLanguage} onCancel={() => cancelVoicePreparation()} onRetry={() => { if (audioBlob) void submitVoice(); }} onTypeInstead={() => { if (activeVoiceAttemptRef.current) cancelVoicePreparation(); setMode("text"); }} />
     </div>
   ) : (
