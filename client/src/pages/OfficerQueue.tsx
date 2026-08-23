@@ -7,7 +7,7 @@ import ComplaintStatusPill from "@/components/ComplaintStatusPill";
 import { useOfficerWorkspaceTheme } from "@/hooks/useOfficerWorkspaceTheme";
 import { trpc } from "@/lib/trpc";
 
-const languageLabels = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી" } as const;
+const languageLabels = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી", mr: "मराठी", bn: "বাংলা", ta: "தமிழ்", te: "తెలుగు", kn: "ಕನ್ನಡ", ml: "മലയാളം", pa: "ਪੰਜਾਬੀ" } as const;
 function titleFor(source: string) { return source.length > 54 ? `${source.slice(0, 54)}…` : source; }
 
 export default function OfficerQueue() {

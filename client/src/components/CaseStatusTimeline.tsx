@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleDotDashed, Clock3, FilePenLine, SendHorizonal, ShieldCheck, Undo2 } from "lucide-react";
+import { CheckCircle2, CircleDotDashed, Clock3, FilePenLine, MessageSquareText, SendHorizonal, ShieldCheck, Undo2 } from "lucide-react";
 
 export type TimelineAuditEvent = { eventType: string; createdAt: Date; actorLabel: string };
 type Props = { status: string; audit: TimelineAuditEvent[] };
@@ -14,8 +14,9 @@ export function buildCaseTimeline(status: string, audit: TimelineAuditEvent[]) {
   const ascending = [...audit].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   const latestByType = (eventType: string) => [...ascending].reverse().find((event) => event.eventType === eventType);
   const returned = latestByType("returned");
-  const displayStages = returned ? [...stages.slice(0, 3), { eventType: "returned", label: "Clarification requested", icon: Undo2, detail: "Returned with a documented reason" }] : stages;
-  return { status, returned, stages: displayStages.map((stage) => ({ ...stage, event: latestByType(stage.eventType) })) };
+  const clarification = latestByType("clarification_added");
+  const displayStages = returned ? [...stages.slice(0, 3), { eventType: "returned", label: "Clarification requested", icon: Undo2, detail: "Returned with a documented reason" }, { eventType: "clarification_added", label: "Citizen clarified", icon: MessageSquareText, detail: "Response added separately from the source statement" }, ...stages.slice(3)] : stages;
+  return { status, returned, clarification, stages: displayStages.map((stage) => ({ ...stage, event: latestByType(stage.eventType) })) };
 }
 
 export default function CaseStatusTimeline({ status, audit }: Props) {

@@ -10,12 +10,14 @@ const REVIEW_SUGGESTION: BnsSuggestion = {
 
 const SAFE_NOTE = "The source statement is preserved as entered. The assistant may only identify missing details and ask follow-up questions; it does not translate, formalise, or add facts.";
 
-const languageNames: Record<SupportedLanguage, string> = { en: "English", hi: "Hindi", gu: "Gujarati" };
+const languageNames: Record<SupportedLanguage, string> = {
+  en: "English", hi: "Hindi", gu: "Gujarati", mr: "Marathi", bn: "Bengali", ta: "Tamil", te: "Telugu", kn: "Kannada", ml: "Malayalam", pa: "Punjabi",
+};
 
 const fieldSchema = {
   type: "object",
   properties: {
-    key: { type: "string", enum: ["incident", "person", "location", "date_time", "property", "injury", "witness"] },
+    key: { type: "string", enum: ["incident", "person", "location", "date_time", "property", "injury", "witness", "vehicle", "threat_or_safety"] },
     label: { type: "string" },
     sourceQuote: { type: "string" },
     required: { type: "boolean" },

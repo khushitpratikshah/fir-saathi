@@ -1,5 +1,6 @@
 import "dotenv/config";
 import {
+  addCitizenClarification,
   confirmComplaint,
   correctComplaintField,
   createComplaint,
@@ -17,12 +18,18 @@ async function main() {
     language: "en",
     sourceTranscript: "Synthetic functional verification only: a bicycle was damaged outside a library at noon.",
     consent: true,
+    context: {
+      incident_when: "today at noon",
+      incident_where: "outside the central library",
+      property_or_loss: "blue bicycle",
+    },
   });
 
   const first = await getComplaintDetail(created.publicId);
   assert(first, "Created complaint cannot be retrieved.");
   assert(first.complaint.status === "needs_citizen_confirmation", "Created complaint did not enter citizen-confirmation status.");
   assert(first.complaint.sourceTranscript.includes("Synthetic functional verification only"), "Source transcript was not preserved.");
+  assert(first.fields.some((field) => field.fieldKey === "context_incident_where" && field.source === "citizen_context"), "Citizen-provided incident context was not stored separately.");
 
   await confirmComplaint(created.publicId);
   const afterConfirm = await getComplaintDetail(created.publicId);
@@ -42,6 +49,11 @@ async function main() {
   await returnComplaint({ publicId: created.publicId, actorLabel: "Functional audit constable", reason: "Synthetic audit return" });
   const afterReturn = await getComplaintDetail(created.publicId);
   assert(afterReturn?.complaint.status === "returned", "Return-for-correction did not set the returned status.");
+
+  await addCitizenClarification({ publicId: created.publicId, clarification: "The bicycle was locked beside the library entrance." });
+  const afterClarification = await getComplaintDetail(created.publicId);
+  assert(afterClarification?.fields.some((field) => field.fieldKey.startsWith("clarification_") && field.source === "citizen_context"), "Citizen clarification was not stored separately.");
+  assert(afterClarification?.audit.some((event) => event.eventType === "clarification_added"), "Clarification audit event was not persisted.");
 
   await confirmComplaint(created.publicId);
   await verifyComplaint({ publicId: created.publicId, actorLabel: "Functional audit constable" });

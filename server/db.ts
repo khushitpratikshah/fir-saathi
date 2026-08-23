@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { nanoid } from "nanoid";
-import { DEMO_BNS_REFERENCES, EMPTY_DRAFT, type BnsSuggestion, type ComplaintStatus, type DraftField, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
+import { DEMO_BNS_REFERENCES, EMPTY_DRAFT, type BnsSuggestion, type CitizenContext, type ComplaintStatus, type DraftField, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
 import { generateSafeDraft } from "./drafting";
 import { groqTranscribe } from "./groqProvider";
 import { portableEvidencePut, portableEvidenceSignedUrl } from "./portableStorage";
@@ -48,7 +48,7 @@ type SupabaseAuditEvent = {
   complaint_id: string;
   actor_label: string;
   actor_role: "citizen" | "constable" | "system";
-  event_type: "created" | "transcribed" | "drafted" | "citizen_confirmed" | "field_corrected" | "returned" | "verified" | "evidence_checked";
+  event_type: "created" | "transcribed" | "drafted" | "citizen_confirmed" | "field_corrected" | "returned" | "verified" | "evidence_checked" | "context_added" | "clarification_added";
   field_key: string | null;
   previous_value: string | null;
   new_value: string | null;
@@ -130,6 +130,33 @@ async function ensureBnsReferences() {
   await supabaseRequest("fir_saathi_bns_references?on_conflict=section_code", { method: "POST", prefer: "resolution=merge-duplicates,return=minimal", body: JSON.stringify(references) });
 }
 
+const contextLabels: Record<keyof CitizenContext, string> = {
+  incident_when: "Incident time or approximate time",
+  incident_where: "Incident place or landmark",
+  people_or_vehicle: "People or vehicle details",
+  property_or_loss: "Property, document, or loss details",
+  injury_or_safety: "Injury, threat, or immediate safety detail",
+  follow_up_contact: "Safe follow-up contact or time",
+};
+
+function normaliseCitizenContext(context: CitizenContext) {
+  return Object.entries(context)
+    .flatMap(([key, value]) => typeof value === "string" && value.trim() && key in contextLabels ? [{ key: key as keyof CitizenContext, value: value.trim() }] : [])
+    .slice(0, 6);
+}
+
+async function saveCitizenContext(complaintId: string, context: CitizenContext, eventType: "context_added" | "clarification_added" = "context_added") {
+  const entries = normaliseCitizenContext(context);
+  if (!entries.length) return 0;
+  await supabaseRequest("fir_saathi_complaint_fields", {
+    method: "POST",
+    prefer: "return=minimal",
+    body: JSON.stringify(entries.map(({ key, value }) => ({ complaint_id: complaintId, field_key: `context_${key}`, label: contextLabels[key], value, source: "citizen_context", confidence: "manual", verification_state: "unverified" }))),
+  });
+  await insertAuditEvent({ complaint_id: complaintId, actor_label: "Citizen", actor_role: "citizen", event_type: eventType, field_key: null, previous_value: null, new_value: `${entries.length} citizen-provided context detail${entries.length === 1 ? "" : "s"} stored separately from the source statement`, reason: null });
+  return entries.length;
+}
+
 export async function listComplaints() {
   await ensureBnsReferences();
   const rows = await supabaseRequest<SupabaseComplaint[]>(`fir_saathi_complaints?select=${complaintColumns}&order=updated_at.desc`);
@@ -148,7 +175,7 @@ export async function getComplaintDetail(publicId: string) {
   return { complaint: mapComplaint(complaint), fields: fields.map(mapField), evidence: evidence.map(mapEvidence), audit: audit.map(mapAuditEvent) };
 }
 
-export async function createComplaint(input: { language: SupportedLanguage; sourceTranscript: string; consent: boolean }) {
+export async function createComplaint(input: { language: SupportedLanguage; sourceTranscript: string; consent: boolean; context: CitizenContext }) {
   const publicId = `FS-${nanoid(7).toUpperCase()}`;
   const created = await supabaseRequest<SupabaseComplaint[]>("fir_saathi_complaints", {
     method: "POST",
@@ -159,6 +186,7 @@ export async function createComplaint(input: { language: SupportedLanguage; sour
   if (!complaint) throw new Error("Unable to create the draft record.");
   await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created text draft", reason: null });
   await draftComplaint(publicId);
+  await saveCitizenContext(complaint.id, input.context);
   return { publicId };
 }
 
@@ -167,7 +195,7 @@ export async function draftComplaint(publicId: string) {
   if (complaint.status === "verified") throw new Error("A verified prototype record cannot be redrafted.");
   const draft = await generateSafeDraft({ language: complaint.language, sourceStatement: complaint.source_transcript });
   await supabaseRequest(`fir_saathi_complaints?public_id=eq.${encodeURIComponent(publicId)}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ draft_json: draft }) });
-  await supabaseRequest(`fir_saathi_complaint_fields?complaint_id=eq.${complaint.id}`, { method: "DELETE", prefer: "return=minimal" });
+  await supabaseRequest(`fir_saathi_complaint_fields?complaint_id=eq.${complaint.id}&source=eq.source_statement`, { method: "DELETE", prefer: "return=minimal" });
   if (draft.fields.length) {
     await supabaseRequest("fir_saathi_complaint_fields", {
       method: "POST",
@@ -181,7 +209,7 @@ export async function draftComplaint(publicId: string) {
 
 function hashBytes(bytes: Buffer) { return createHash("sha256").update(bytes).digest("hex"); }
 
-export async function createVoiceComplaint(input: { language: SupportedLanguage; mimeType: string; rawAudioBase64: string; encryptedAudioBase64: string; ivBase64: string; ciphertextSha256: string }) {
+export async function createVoiceComplaint(input: { language: SupportedLanguage; mimeType: string; rawAudioBase64: string; encryptedAudioBase64: string; ivBase64: string; ciphertextSha256: string; context: CitizenContext }) {
   const rawAudio = Buffer.from(input.rawAudioBase64, "base64");
   const encryptedAudio = Buffer.from(input.encryptedAudioBase64, "base64");
   if (!rawAudio.length || !encryptedAudio.length) throw new Error("The recorded audio could not be read.");
@@ -208,6 +236,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype evidence service", actor_role: "system", event_type: "evidence_checked", field_key: null, previous_value: null, new_value: "Encrypted ciphertext hash matched at capture", reason: null }),
     ]);
     await draftComplaint(publicId);
+    await saveCitizenContext(complaint.id, input.context);
   } catch (error) {
     await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "DELETE", prefer: "return=minimal" });
     throw error;
@@ -231,8 +260,24 @@ export async function verifyEvidenceHash(input: { publicId: string; evidenceId: 
 
 export async function confirmComplaint(publicId: string) {
   const complaint = await requireComplaint(publicId);
-  await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "ready_for_review", citizen_confirmed_at: new Date().toISOString() }) });
+  if (complaint.status === "verified") throw new Error("A verified prototype record cannot be confirmed again.");
+  if (complaint.status !== "needs_citizen_confirmation" && complaint.status !== "returned") throw new Error("This record is not waiting for citizen confirmation.");
+  await Promise.all([
+    supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "ready_for_review", citizen_confirmed_at: new Date().toISOString() }) }),
+    supabaseRequest(`fir_saathi_complaint_fields?complaint_id=eq.${complaint.id}&source=eq.citizen_context`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ verification_state: "citizen_confirmed" }) }),
+  ]);
   await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "citizen_confirmed", field_key: null, previous_value: null, new_value: "Explicit citizen confirmation", reason: null });
+}
+
+export async function addCitizenClarification(input: { publicId: string; clarification: string }) {
+  const complaint = await requireComplaint(input.publicId);
+  if (complaint.status !== "returned") throw new Error("A clarification can only be added after a constable return request.");
+  const value = input.clarification.trim();
+  if (value.length < 4) throw new Error("Please add a short clarification before sending it back to review.");
+  const fieldKey = `clarification_${Date.now()}`;
+  await supabaseRequest("fir_saathi_complaint_fields", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, field_key: fieldKey, label: "Citizen clarification", value, source: "citizen_context", confidence: "manual", verification_state: "unverified" }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "clarification_added", field_key: fieldKey, previous_value: null, new_value: "Citizen clarification added separately from the source statement", reason: null });
+  return { success: true };
 }
 
 export async function correctComplaintField(input: { publicId: string; fieldKey: string; label: string; value: string; actorLabel: string; reason: string }) {

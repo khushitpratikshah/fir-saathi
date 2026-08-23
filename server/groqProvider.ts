@@ -24,20 +24,40 @@ async function requestWithTimeout(url: string, init: RequestInit, timeoutMs: num
 }
 
 export async function groqStructuredDraft(input: { systemPrompt: string; userPrompt: string; schema: JsonSchema }) {
-  const response = await requestWithTimeout(`${GROQ_BASE_URL}/chat/completions`, {
+  const strictBody = {
+    model: DRAFT_MODEL,
+    temperature: 0.000001,
+    max_completion_tokens: 1_800,
+    messages: [
+      { role: "system", content: input.systemPrompt },
+      { role: "user", content: input.userPrompt },
+    ],
+    response_format: { type: "json_schema", json_schema: { name: "fir_saathi_safe_draft", strict: true, schema: input.schema } },
+  };
+  let response = await requestWithTimeout(`${GROQ_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: { ...groqHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: DRAFT_MODEL,
-      temperature: 0.000001,
-      max_completion_tokens: 1_800,
-      messages: [
-        { role: "system", content: input.systemPrompt },
-        { role: "user", content: input.userPrompt },
-      ],
-      response_format: { type: "json_schema", json_schema: { name: "fir_saathi_safe_draft", strict: true, schema: input.schema } },
-    }),
+    body: JSON.stringify(strictBody),
   }, 25_000);
+  if (!response.ok && response.status === 400) {
+    const failedDetail = await response.text();
+    if (/failed_generation|jsonschema/i.test(failedDetail)) {
+      response = await requestWithTimeout(`${GROQ_BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: { ...groqHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...strictBody,
+          messages: [
+            { role: "system", content: `${input.systemPrompt}\n\nReturn one valid JSON object only. It must include fields, missingDetails, followUpQuestions, and bnsSuggestions, even when each value is an empty array. Do not use markdown.` },
+            { role: "user", content: input.userPrompt },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      }, 25_000);
+    } else {
+      throw new Error(`Portable drafting provider returned ${response.status}: ${failedDetail.replace(/\s+/g, " ").slice(0, 300)}`);
+    }
+  }
   if (!response.ok) {
     const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300);
     throw new Error(`Portable drafting provider returned ${response.status}: ${detail}`);

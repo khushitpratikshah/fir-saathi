@@ -7,7 +7,7 @@ import ComplaintStatusPill from "@/components/ComplaintStatusPill";
 import RecordLoading from "@/components/RecordLoading";
 import { trpc } from "@/lib/trpc";
 
-const languageLabel = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી" } as const;
+const languageLabel = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી", mr: "मराठी", bn: "বাংলা", ta: "தமிழ்", te: "తెలుగు", kn: "ಕನ್ನಡ", ml: "മലയാളം", pa: "ਪੰਜਾਬੀ" } as const;
 
 export default function CitizenConfirmation() {
   const [, params] = useRoute("/confirm/:publicId");
@@ -17,12 +17,22 @@ export default function CitizenConfirmation() {
   const [speechAvailable, setSpeechAvailable] = useState(false);
   const [hasListened, setHasListened] = useState(false);
   const [fallbackAcknowledged, setFallbackAcknowledged] = useState(false);
+  const [clarification, setClarification] = useState("");
   const selectedLanguage = detail.data?.complaint.language;
 
   const confirm = trpc.complaints.confirm.useMutation({
     onSuccess: () => {
       toast.success("Your confirmation was recorded. The draft is ready for constable review.");
       navigate("/officer");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const utils = trpc.useUtils();
+  const addClarification = trpc.complaints.addClarification.useMutation({
+    onSuccess: async () => {
+      await utils.complaints.get.invalidate({ publicId });
+      setClarification("");
+      toast.success("Your clarification was added separately from the source statement.");
     },
     onError: (error) => toast.error(error.message),
   });
@@ -53,8 +63,10 @@ export default function CitizenConfirmation() {
     return <FirSaathiShell><main className="grid min-h-[calc(100vh-144px)] place-items-center px-5"><div className="max-w-md text-center"><CircleAlert className="mx-auto h-8 w-8 text-[#c64e19]" /><h1 className="mt-4 text-3xl font-bold tracking-[-0.04em]">This draft is unavailable.</h1><p className="mt-2 text-sm leading-6 text-slate-600">The prototype record could not be found or opened.</p><Link href="/intake" className="focus-ring mt-6 inline-flex rounded-xl bg-[#102643] px-4 py-3 text-sm font-bold text-white">Return to intake</Link></div></main></FirSaathiShell>;
   }
 
-  const { complaint } = detail.data;
+  const { complaint, fields, audit } = detail.data;
   const draft = complaint.draftJson;
+  const returnRequest = audit.find((event) => event.eventType === "returned");
+  const citizenContext = fields.filter((field) => field.source === "citizen_context");
   const playReadBack = () => {
     if (!speechAvailable) return;
     const voice = window.speechSynthesis.getVoices().find((candidate) => candidate.lang.toLowerCase().startsWith(complaint.language));
@@ -100,8 +112,12 @@ export default function CitizenConfirmation() {
                 {draft.followUpQuestions.length > 0 && <div className="mt-5 rounded-xl border border-[#c64e19]/20 bg-[#fff6f1] p-4"><p className="text-xs font-bold text-[#9b3a0d]">Suggested follow-up questions</p><ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#7e3b1f]">{draft.followUpQuestions.map((question) => <li key={question}>• {question}</li>)}</ul></div>}
               </section>
 
+              {citizenContext.length > 0 && <section className="rounded-2xl border border-[#102643]/10 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Your separately provided incident context</p><p className="mt-1 text-xs leading-5 text-slate-600">These optional details are shown separately and do not alter your source statement.</p><dl className="mt-4 grid gap-3 sm:grid-cols-2">{citizenContext.map((field) => <div key={field.id} className="rounded-xl bg-[#fbfaf6] p-3"><dt className="text-[11px] font-bold text-[#102643]">{field.label}</dt><dd className="mt-1 text-sm leading-6 text-slate-600">{field.value}</dd></div>)}</dl></section>}
+
+              {complaint.status === "returned" && <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5"><div className="flex gap-3"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" /><div><p className="text-sm font-bold text-amber-950">A constable asked for clarification.</p><p className="mt-1 text-xs leading-5 text-amber-900">{returnRequest?.reason || "Please add the requested factual detail in your own words."}</p></div></div><label className="mt-4 block text-xs font-bold text-amber-950">Your clarification<textarea value={clarification} onChange={(event) => setClarification(event.target.value)} rows={4} maxLength={2000} className="focus-ring mt-1.5 w-full resize-y rounded-xl border border-amber-300 bg-white p-3 text-sm font-normal leading-6 text-[#102643]" placeholder="Add only the detail you want to provide. This is saved separately and will not rewrite your original statement." /></label><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-[11px] text-amber-900">{clarification.length}/2000</p><button type="button" disabled={clarification.trim().length < 4 || addClarification.isPending} onClick={() => addClarification.mutate({ publicId, clarification })} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-amber-900 px-3 text-xs font-bold text-white disabled:opacity-50">{addClarification.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Add clarification</button></div></section>}
+
               <aside className="rounded-2xl border border-[#c64e19]/20 bg-[#fff5ef] p-4"><div className="flex gap-3"><FileText className="mt-0.5 h-4 w-4 shrink-0 text-[#c64e19]" /><div><p className="text-sm font-bold text-[#8f360e]">Before you send this to review</p><p className="mt-1 text-xs leading-5 text-[#8f360e]">Your explicit confirmation sends a draft to the constable workspace. It does not register an FIR or decide any legal section.</p></div></div></aside>
-              <div className="flex flex-col gap-3 border-t border-[#102643]/10 pt-5 sm:flex-row sm:items-center sm:justify-between"><p className="flex items-start gap-2 text-xs leading-5 text-slate-500"><CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#c64e19]" /> Your confirmation sends a draft to a constable. It does not register an FIR.</p><button type="button" disabled={confirm.isPending || complaint.status === "verified" || (!hasListened && !fallbackAcknowledged)} onClick={() => confirm.mutate({ publicId })} className="pressable focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#102643] px-4 text-sm font-bold text-white disabled:opacity-50">{confirm.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Confirm and send for review</button></div>
+              <div className="flex flex-col gap-3 border-t border-[#102643]/10 pt-5 sm:flex-row sm:items-center sm:justify-between"><p className="flex items-start gap-2 text-xs leading-5 text-slate-500"><CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#c64e19]" /> Your confirmation sends a draft to a constable. It does not register an FIR.</p><button type="button" disabled={confirm.isPending || complaint.status === "verified" || (!hasListened && !fallbackAcknowledged)} onClick={() => confirm.mutate({ publicId })} className="pressable focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#102643] px-4 text-sm font-bold text-white disabled:opacity-50">{confirm.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{complaint.status === "returned" ? "Send response for review" : "Confirm and send for review"}</button></div>
             </div>
           </section>
         </div>

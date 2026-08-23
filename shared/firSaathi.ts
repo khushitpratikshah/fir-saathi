@@ -1,5 +1,9 @@
-export const SUPPORTED_LANGUAGES = ["en", "hi", "gu"] as const;
+export const SUPPORTED_LANGUAGES = ["en", "hi", "gu", "mr", "bn", "ta", "te", "kn", "ml", "pa"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+
+export const CITIZEN_CONTEXT_KEYS = ["incident_when", "incident_where", "people_or_vehicle", "property_or_loss", "injury_or_safety", "follow_up_contact"] as const;
+export type CitizenContextKey = (typeof CITIZEN_CONTEXT_KEYS)[number];
+export type CitizenContext = Partial<Record<CitizenContextKey, string>>;
 
 export const COMPLAINT_STATUSES = [
   "draft",
@@ -40,7 +44,7 @@ export type DraftField = {
   value: string;
   sourceQuote?: string;
   required: boolean;
-  source: "source_statement" | "officer_correction" | "assistant_draft";
+  source: "source_statement" | "officer_correction" | "assistant_draft" | "citizen_context";
   confidence: "high" | "medium" | "low" | "manual";
 };
 

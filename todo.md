@@ -71,3 +71,9 @@
 - [x] Diagnose the failed GitHub Pages workflow from the repository run logs.
 - [x] Repair the Pages workflow or repository configuration required to publish the static showcase.
 - [x] Validate the logo treatment, static artifact, and successful GitHub deployment path, then push and checkpoint the repair.
+- [x] Disable and remove the GitHub Pages static showcase and its deployment workflow.
+- [x] Research high-value, non-authentication complaint-intake and constable-review workflow improvements for the prototype.
+- [x] Expand citizen language selection and language-aware complaint capture without translating or rewriting the source statement.
+- [x] Add practical core complaint-process features for incident context, contact follow-up, and case readiness.
+- [x] Strengthen constable review aids while preserving human verification and non-registration guardrails.
+- [ ] Validate the focused multilingual core workflow, push the private repository update, and checkpoint it.

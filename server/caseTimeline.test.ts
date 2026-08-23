@@ -11,9 +11,9 @@ describe("case-status timeline", () => {
     expect(timeline.stages[3].event).toBeUndefined();
   });
 
-  it("shows clarification instead of a completed verification after a return event", () => {
+  it("shows the returned clarification loop before a future human verification", () => {
     const timeline = buildCaseTimeline("returned", [at("created", "2026-08-01T09:00:00.000Z"), at("drafted", "2026-08-01T10:00:00.000Z"), at("citizen_confirmed", "2026-08-01T11:00:00.000Z"), at("returned", "2026-08-01T12:00:00.000Z")]);
-    expect(timeline.stages.at(-1)?.label).toBe("Clarification requested");
+    expect(timeline.stages.map((stage) => stage.label)).toEqual(["Intake created", "Draft prepared", "Citizen confirmed", "Clarification requested", "Citizen clarified", "Human verified"]);
     expect(timeline.returned?.actorLabel).toBe("Test actor");
   });
 });

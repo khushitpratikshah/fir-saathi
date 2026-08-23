@@ -1,10 +1,19 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, constableProcedure, publicProcedure, router } from "./_core/trpc";
-import { assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, returnComplaint, verifyComplaint, verifyEvidenceHash } from "./db";
+import { addCitizenClarification, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, returnComplaint, verifyComplaint, verifyEvidenceHash } from "./db";
 import { clearPortableSession, getPortableUser, storePortableSession } from "./supabaseAuth";
+import { SUPPORTED_LANGUAGES } from "../shared/firSaathi";
 
 const publicIdSchema = z.string().trim().min(4).max(32);
+const citizenContextSchema = z.object({
+  incident_when: z.string().trim().max(240).optional(),
+  incident_where: z.string().trim().max(320).optional(),
+  people_or_vehicle: z.string().trim().max(500).optional(),
+  property_or_loss: z.string().trim().max(500).optional(),
+  injury_or_safety: z.string().trim().max(500).optional(),
+  follow_up_contact: z.string().trim().max(320).optional(),
+}).default({});
 
 function databaseError(error: unknown): never {
   throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "The prototype record could not be processed." });
@@ -53,16 +62,17 @@ export const appRouter = router({
         return detail;
       } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); }
     }),
-    create: publicProcedure.input(z.object({ language: z.enum(["en", "hi", "gu"]), sourceTranscript: z.string().trim().min(8).max(12_000), consent: z.literal(true) })).mutation(async ({ input }) => { try { return await createComplaint(input); } catch (error) { return databaseError(error); } }),
+    create: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), consent: z.literal(true), context: citizenContextSchema })).mutation(async ({ input }) => { try { return await createComplaint(input); } catch (error) { return databaseError(error); } }),
     draft: publicProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { return await draftComplaint(input.publicId); } catch (error) { return databaseError(error); } }),
     confirm: publicProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { await confirmComplaint(input.publicId); return { success: true }; } catch (error) { return databaseError(error); } }),
+    addClarification: publicProcedure.input(z.object({ publicId: publicIdSchema, clarification: z.string().trim().min(4).max(2_000) })).mutation(async ({ input }) => { try { return await addCitizenClarification(input); } catch (error) { return databaseError(error); } }),
     correctField: constableProcedure.input(z.object({ publicId: publicIdSchema, fieldKey: z.string().trim().min(1).max(80), label: z.string().trim().min(1).max(160), value: z.string().trim().min(1).max(5_000), reason: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await correctComplaintField({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
     returnForCorrection: constableProcedure.input(z.object({ publicId: publicIdSchema, reason: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await returnComplaint({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
     verify: constableProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input, ctx }) => { try { await verifyComplaint({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
   }),
   bns: router({ list: publicProcedure.query(async () => { try { return await listDemoBnsReferences(); } catch (error) { return databaseError(error); } }) }),
   evidence: router({
-    captureAndTranscribe: publicProcedure.input(z.object({ language: z.enum(["en", "hi", "gu"]), mimeType: z.enum(["audio/webm", "audio/ogg", "audio/wav", "audio/mpeg", "audio/mp4"]), rawAudioBase64: z.string().min(10).max(17_000_000), encryptedAudioBase64: z.string().min(10).max(17_100_000), ivBase64: z.string().min(8).max(100), ciphertextSha256: z.string().regex(/^[a-f0-9]{64}$/) })).mutation(async ({ input }) => { try { return await createVoiceComplaint(input); } catch (error) { return databaseError(error); } }),
+    captureAndTranscribe: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), mimeType: z.enum(["audio/webm", "audio/ogg", "audio/wav", "audio/mpeg", "audio/mp4"]), rawAudioBase64: z.string().min(10).max(17_000_000), encryptedAudioBase64: z.string().min(10).max(17_100_000), ivBase64: z.string().min(8).max(100), ciphertextSha256: z.string().regex(/^[a-f0-9]{64}$/), context: citizenContextSchema })).mutation(async ({ input }) => { try { return await createVoiceComplaint(input); } catch (error) { return databaseError(error); } }),
     verifyHash: constableProcedure.input(z.object({ publicId: publicIdSchema, evidenceId: z.string().uuid() })).mutation(async ({ input, ctx }) => { try { return await verifyEvidenceHash({ ...input, actorLabel: constableLabel(ctx.user) }); } catch (error) { return databaseError(error); } }),
   }),
 });
