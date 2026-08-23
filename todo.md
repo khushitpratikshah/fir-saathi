@@ -104,3 +104,4 @@
 - [x] Repair desktop text rendering after the responsive hero and follow-up layout changes, then validate desktop and mobile views.
 - [ ] Set up a least-privilege remote connection for direct, controlled FIR Saathi deployments to the Raspberry Pi.
 - [ ] Add a repository-scoped GitHub Actions self-hosted runner workflow for controlled automatic deployment to the Raspberry Pi.
+- [ ] Align the guarded deployment workflow with the registered Raspberry Pi runner's built-in ARM64 label and verify an automatic rollout.

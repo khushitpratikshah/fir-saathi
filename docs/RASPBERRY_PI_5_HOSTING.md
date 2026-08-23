@@ -401,7 +401,7 @@ Review the following monthly: Raspberry Pi OS updates, Node version, `fir-saathi
 
 ## 14. Optional automatic deployment with a repository-scoped GitHub runner
 
-FIR Saathi includes `.github/workflows/deploy-raspberry-pi.yml`. It can automatically deploy a **push to `main`** only when a repository-scoped self-hosted runner on this Pi has the `fir-saathi-prod` label. The workflow does not receive application secrets from GitHub. Instead, the local deployment script reads the existing root-owned `/etc/fir-saathi.env` file and restarts the already-configured `fir-saathi` service.
+FIR Saathi includes `.github/workflows/deploy-raspberry-pi.yml`. It can automatically deploy a **push to `main`** only when the repository-scoped self-hosted runner on this Pi has GitHub's built-in `Linux` and `ARM64` labels. The workflow does not receive application secrets from GitHub. Instead, the local deployment script reads the existing root-owned `/etc/fir-saathi.env` file and restarts the already-configured `fir-saathi` service.
 
 > **Security boundary:** A self-hosted runner executes workflow code on the Pi. Keep this repository private, restrict write access, never enable this workflow for pull requests or forks, and register the runner to this repository only. GitHub cautions that self-hosted runners are not isolated clean machines and should be treated as sensitive deployment infrastructure.[10]
 
@@ -431,7 +431,7 @@ sudo -u firsaathi -H bash
 cd /srv/fir-saathi/actions-runner
 # Run GitHub's displayed ARM64 download/extract command here.
 # Then register with the repository URL and one-hour token:
-./config.sh --url https://github.com/khushitpratikshah/fir-saathi --token YOUR_ONE_HOUR_TOKEN --labels fir-saathi-prod --unattended --name fir-saathi-pi
+./config.sh --url https://github.com/khushitpratikshah/fir-saathi --token YOUR_ONE_HOUR_TOKEN --unattended --name fir-saathi-pi
 exit
 ```
 
@@ -448,7 +448,7 @@ The runner should show as **Idle** under the repository’s **Settings → Actio
 
 ### 14.3 First controlled deployment
 
-Before relying on automation, review the workflow in this repository and make one harmless commit to `main`. In the repository’s **Actions** tab, open **Deploy FIR Saathi to Raspberry Pi** and confirm that it runs only on the `fir-saathi-prod` runner. The workflow executes the local `bin/deploy-from-main.sh` script, which fetches `main`, verifies the triggering commit is present, runs install/type-check/build, and restarts `fir-saathi` only after a successful build.
+Before relying on automation, review the workflow in this repository and make one harmless commit to `main`. In the repository’s **Actions** tab, open **Deploy FIR Saathi to Raspberry Pi** and confirm that it runs only on the repository-scoped Linux/ARM64 Pi runner. The workflow executes the local `bin/deploy-from-main.sh` script, which fetches `main`, verifies the triggering commit is present, runs install/type-check/build, and restarts `fir-saathi` only after a successful build.
 
 If a deployment fails, do not repeatedly re-run it without reading the log. On the Pi, inspect:
 

@@ -15,8 +15,8 @@ concurrency:
 jobs:
   deploy:
     name: Build and restart production service
-    # This label must exist only on the repository-scoped runner installed on the production Pi.
-    runs-on: [self-hosted, Linux, fir-saathi-prod]
+    # The repository-scoped Pi runner has GitHub's built-in Linux and ARM64 labels.
+    runs-on: [self-hosted, Linux, ARM64]
     if: github.repository == 'khushitpratikshah/fir-saathi' && github.ref == 'refs/heads/main'
     timeout-minutes: 20
     steps:
