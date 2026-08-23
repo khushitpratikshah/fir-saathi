@@ -85,3 +85,9 @@
 - [x] Validate the complete usability and review-support update, synchronize the private repository, and save a checkpoint.
 - [x] Create a Raspberry Pi 5 self-hosting guide for FIR Saathi with external Supabase and Groq services, secure HTTPS, service management, and operational maintenance.
 - [x] Revise the Raspberry Pi 5 self-hosting guide for Cloudflare Tunnel and a user-owned domain without inbound router port forwarding.
+- [x] Correct the Raspberry Pi deployment validation guidance for production secure cookies, Supabase URL formatting, and interrupted test execution.
+- [x] Diagnose and correct the Raspberry Pi Supabase API-key configuration causing the sign-in error.
+- [x] Diagnose and document the Supabase confirmation-email delivery and retry path for Raspberry Pi-hosted account sign-up.
+- [x] Add current free custom-SMTP setup guidance for Supabase confirmation emails using a domain on Cloudflare.
+- [x] Diagnose and correct the Supabase confirmation-link flow that leaves a newly emailed account unconfirmed on the Raspberry Pi deployment.
+- [ ] Diagnose and correct the browser sign-in/sign-up mode failure after email confirmation on the Raspberry Pi deployment.

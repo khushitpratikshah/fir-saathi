@@ -147,6 +147,8 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=replace_with_publishable_key
 ```
 
+Use the exact Supabase project URL **without a trailing slash** for both URL variables. For example, use `https://project-ref.supabase.co`, not `https://project-ref.supabase.co/`. The FIR Saathi configuration check intentionally rejects the trailing-slash form.
+
 Lock down the file so only root and the service account group can read it:
 
 ```bash
@@ -179,6 +181,43 @@ Before testing sign-in or password reset, open the Supabase dashboard for the ex
 4. Keep your local development URL(s) as additional redirect URLs only if you still use them.
 
 Supabase documents that Site URL is the default redirect location when no explicit `redirectTo` value is provided, and calls it critical for email confirmations and password resets.[4]
+
+### Configure email delivery before testing sign-up
+
+Supabase's built-in email provider is for demos only. It sends only to addresses pre-authorized as members of the Supabase organization and is currently limited to two messages per hour; it is not suitable for ordinary account confirmation or password-reset delivery.[7] This is why an account can be created successfully without any confirmation email appearing in the inbox.
+
+For a quick prototype check, ensure the destination address is a member of the Supabase project's organization and wait for any rate-limit window to clear. For a real hosted flow, configure a custom SMTP provider:
+
+1. Use an SMTP-capable transactional mail provider and verify a sender domain or sender address that you control.
+2. In Supabase, open **Authentication → Emails → SMTP settings**.
+3. Enable custom SMTP and enter the provider's SMTP host, port, username, password, From address, and sender name.
+4. Keep email confirmation enabled; do not disable it merely to work around delivery problems.
+5. Review **Authentication → Rate Limits** after custom SMTP is working and enable CAPTCHA before opening public sign-up.
+
+Treat the SMTP password as a secret. Store it only in Supabase's SMTP settings, not in the Raspberry Pi's `/etc/fir-saathi.env`, source repository, browser code, or chat. The existing unconfirmed user can be removed from **Authentication → Users** and recreated after delivery is configured, or you can use Supabase's user-management controls to resend confirmation from the dashboard.
+
+### Recommended free option: Resend
+
+For a low-volume prototype, Resend is the simpler current free option: its Free plan allows up to 100 emails per day.[8] SendGrid's no-cost offering is a time-limited trial rather than a permanent free SMTP tier, so use Resend unless you specifically need SendGrid.[9]
+
+1. Create a Resend account and choose **Domains → Add Domain**.
+2. Add a subdomain dedicated to application mail, for example `mail.yourdomain.com`. This does not need to be the same hostname as the Cloudflare Tunnel site.
+3. Copy the DNS records Resend displays into **Cloudflare → DNS**. Keep them as **DNS only** records; do not proxy mail-related records through Cloudflare. Wait until Resend marks the domain as verified.
+4. In Resend, create an API key restricted to sending email and store it in a password manager. This API key is the SMTP password.
+5. In **Supabase → Authentication → Emails → SMTP settings**, enable custom SMTP and enter:
+
+| Supabase field | Resend value |
+|---|---|
+| Sender email | `no-reply@mail.yourdomain.com` or another address on the verified Resend domain |
+| Sender name | `FIR Saathi` |
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | The Resend API key |
+
+6. Save the Supabase SMTP settings. Then delete the unconfirmed **test** account and sign up once again to send a fresh confirmation message.
+
+Resend's Supabase guide specifies `smtp.resend.com`, port `465`, username `resend`, and the Resend API key as the SMTP password.[10] Never put the Resend key in `/etc/fir-saathi.env`; Supabase, not the Pi application, sends confirmation emails.
 
 The deployment assumes the FIR Saathi Supabase migrations and private `fir-saathi-evidence` bucket already exist. Do not create a local database on the Pi. If you are setting up a fresh Supabase project, apply the repository’s migrations from a trusted administration machine before exposing the Pi.
 
@@ -328,7 +367,7 @@ sudo -u firsaathi -H bash -lc '
   git pull --ff-only origin main
   pnpm install --frozen-lockfile
   set -a; . /etc/fir-saathi.env; set +a
-  pnpm test
+  NODE_ENV=test pnpm test
   pnpm check
   pnpm build
 '
@@ -367,6 +406,9 @@ Review the following monthly: Raspberry Pi OS updates, Node version, `fir-saathi
 | `fir-saathi` will not start | `sudo journalctl -u fir-saathi -n 100 --no-pager` | Check `/etc/fir-saathi.env`, Node 22 availability for `firsaathi`, and that `pnpm build` completed. |
 | Tunnel route returns an error | `curl -I http://127.0.0.1:3000`, `systemctl status fir-saathi cloudflared` | Restore the Node service first, then inspect the Cloudflare Tunnel health and published-route configuration. |
 | Tunnel is unhealthy | `sudo journalctl -u cloudflared -n 100 --no-pager` | Verify the connector token, outbound internet access, and firewall egress to Cloudflare port 7844. |
+| Tests expect an insecure cookie while production settings make it secure | Run `NODE_ENV=test pnpm test` | This is a test-environment setting only. Keep `NODE_ENV=production` in `/etc/fir-saathi.env` for the running website. |
+| Supabase browser configuration test rejects the URL | Inspect `SUPABASE_URL` and `VITE_SUPABASE_URL` | Remove the trailing `/` from each Supabase project URL, then rerun the test. |
+| Account created but no confirmation email arrives | Supabase **Authentication → Emails → SMTP settings** | Default Supabase SMTP sends only to organization members and has a low rate limit; configure custom SMTP for normal users, then resend or recreate the unconfirmed user. |
 | Sign-in/reset link returns to localhost | Supabase **Authentication → URL Configuration** | Set Site URL and exact production redirect URL as described in section 7. |
 | Groq drafting/transcription fails | `journalctl -u fir-saathi -f` | Verify server-only `GROQ_API_KEY`, outbound internet access, and Groq account status; do not move the key into browser variables. |
 | Supabase data/evidence calls fail | Server logs and Supabase dashboard | Verify `SUPABASE_URL`, service-role key, migrations, RLS, and private bucket configuration. |
@@ -385,3 +427,11 @@ Review the following monthly: Raspberry Pi OS updates, Node version, `fir-saathi
 [5] [Cloudflare Docs, *Set up Cloudflare Tunnel*](https://developers.cloudflare.com/tunnel/setup/)
 
 [6] [Cloudflare Docs, *Tunnel tokens*](https://developers.cloudflare.com/tunnel/advanced/tunnel-tokens/)
+
+[7] [Supabase Docs, *Send emails with custom SMTP*](https://supabase.com/docs/guides/auth/auth-smtp)
+
+[8] [Resend Docs, *What is Resend Pricing?*](https://resend.com/docs/knowledge-base/what-is-resend-pricing)
+
+[9] [Twilio, *SendGrid Email API pricing*](https://www.twilio.com/en-us/products/email-api/pricing)
+
+[10] [Resend Docs, *Send emails using Supabase with SMTP*](https://resend.com/docs/send-with-supabase-smtp)

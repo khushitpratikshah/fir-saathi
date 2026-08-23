@@ -1,5 +1,15 @@
 type SupabaseSession = { access_token: string; refresh_token: string; expires_in: number };
 type AuthResponse = { session: SupabaseSession | null; user?: { id: string; email?: string | null }; msg?: string };
+type SupabaseAuthPayload = AuthResponse & Partial<SupabaseSession> & { error_description?: string; message?: string };
+
+export function normaliseSupabaseAuthPayload(payload: SupabaseAuthPayload): AuthResponse {
+  const embeddedSession = payload.session;
+  if (embeddedSession) return payload;
+  if (typeof payload.access_token === "string" && typeof payload.refresh_token === "string" && typeof payload.expires_in === "number") {
+    return { ...payload, session: { access_token: payload.access_token, refresh_token: payload.refresh_token, expires_in: payload.expires_in } };
+  }
+  return { ...payload, session: null };
+}
 
 function getConfig() {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -11,9 +21,9 @@ function getConfig() {
 async function authRequest(path: string, body: Record<string, unknown>): Promise<AuthResponse> {
   const { url, key } = getConfig();
   const response = await fetch(`${url}${path}`, { method: "POST", headers: { apikey: key, "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const payload = await response.json().catch(() => ({})) as AuthResponse & { error_description?: string; message?: string };
+  const payload = await response.json().catch(() => ({})) as SupabaseAuthPayload;
   if (!response.ok) throw new Error(payload.error_description || payload.message || "Supabase could not complete sign-in.");
-  return payload;
+  return normaliseSupabaseAuthPayload(payload);
 }
 
 export function signInWithSupabase(email: string, password: string) {
