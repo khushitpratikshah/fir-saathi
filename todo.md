@@ -62,3 +62,8 @@
 - [x] Update deployment documentation, including Supabase Auth Site URL and custom-domain redirect configuration.
 - [x] Validate the administrator dashboard, role assignment, self-hosted build, and responsive journeys.
 - [x] Push the completed self-hosted administrator update to the private GitHub repository and save a checkpoint.
+- [x] Add accessible loading, success, retry, and recovery messages to the sign-in flow.
+- [x] Add accessible loading, invalid-link, success, retry, and recovery messages to the password-reset flow.
+- [x] Create a static GitHub Pages showcase build that cannot expose server secrets or impersonate the secure intake workflow.
+- [x] Document GitHub Pages limitations and deployment steps alongside the self-hosted full-stack option.
+- [x] Validate responsive authentication feedback and the static showcase build, then push and checkpoint the update.

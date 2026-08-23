@@ -41,6 +41,10 @@ After a trusted administrator profile has been established, you may remove the b
 
 In Supabase **Authentication → URL Configuration**, set the Site URL to your final domain, for example `https://fir.example.org`. Add the same origin’s `/reset-password` path to the allowed redirect URLs. Add each development origin separately. This is required for confirmation and password-recovery emails.
 
+## GitHub Pages showcase
+
+The repository also ships a **static, non-functional showcase** suitable for GitHub Pages. It never includes server secrets or accepts complaints. See [GITHUB_PAGES.md](./GITHUB_PAGES.md) for setup and the important distinction between the showcase and the secure self-hosted service.
+
 ## Security notes
 
 Keep `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, and `FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL` on the server only. The browser needs only the Supabase URL and publishable key. In Supabase Auth password-security settings, enable leaked-password protection before opening account registration to a wider audience. Review Supabase RLS policies and restrict who can use the administrator account before using the prototype beyond demonstrations.
