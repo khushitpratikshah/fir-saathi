@@ -91,3 +91,4 @@
 - [x] Add current free custom-SMTP setup guidance for Supabase confirmation emails using a domain on Cloudflare.
 - [x] Diagnose and correct the Supabase confirmation-link flow that leaves a newly emailed account unconfirmed on the Raspberry Pi deployment.
 - [ ] Diagnose and correct the browser sign-in/sign-up mode failure after email confirmation on the Raspberry Pi deployment.
+- [ ] Diagnose and correct the Supabase refresh-token validation failure after Raspberry Pi sign-in.

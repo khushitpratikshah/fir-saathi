@@ -15,6 +15,13 @@ const citizenContextSchema = z.object({
   follow_up_contact: z.string().trim().max(320).optional(),
 }).default({});
 
+export const portableSessionInputSchema = z.object({
+  accessToken: z.string().min(20).max(20_000),
+  // Supabase refresh tokens are opaque values; only non-emptiness is stable across providers and projects.
+  refreshToken: z.string().min(1).max(20_000),
+  expiresIn: z.number().int().positive().max(60 * 60 * 24 * 7),
+});
+
 function databaseError(error: unknown): never {
   throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "The prototype record could not be processed." });
 }
@@ -26,7 +33,7 @@ function constableLabel(user: { name: string | null; email: string | null }) {
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
-    establishSession: publicProcedure.input(z.object({ accessToken: z.string().min(20).max(20_000), refreshToken: z.string().min(20).max(20_000), expiresIn: z.number().int().positive().max(60 * 60 * 24 * 7) })).mutation(async ({ input, ctx }) => {
+    establishSession: publicProcedure.input(portableSessionInputSchema).mutation(async ({ input, ctx }) => {
       const user = await getPortableUser(input.accessToken);
       if (!user) throw new TRPCError({ code: "UNAUTHORIZED", message: "The Supabase session could not be verified." });
       storePortableSession(ctx.res, input);
