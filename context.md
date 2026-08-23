@@ -256,6 +256,10 @@ The visual direction is a civic-technology workspace rather than a literal polic
 
 The application is designed mobile-first because citizen intake is likely to begin on a phone. Touch targets are substantial, actions are full-width when appropriate, and questions are one at a time. The landing-page hero headline was specifically repaired for mobile/Samsung Internet: it now uses explicit block lines, responsive type sizing, and disables the transform-based entrance animation on small screens to prevent overlapping text.
 
+### Responsive visual validation
+
+The landing hero and citizen-confirmation experience were visually reviewed in development at a **1280 × 720 desktop viewport** and a **375 × 812 phone viewport**. At desktop size, the hero headline, structured source statement, optional-detail controls, context cards, and confirmation action remained readable without overlap or clipped controls. At phone size, the hero’s explicit headline lines remained legible, and the confirmation journey stacked cleanly with readable source text, full-width optional-detail buttons, and a reachable confirmation action.
+
 ### Motion philosophy
 
 Motion is subtle and purposeful: waveform movement communicates active listening, small fade-ins support page hierarchy, and buttons provide quick tactile feedback. Animations respect reduced-motion preferences. Motion must never obscure the source statement or make a legal/AI decision appear more certain.

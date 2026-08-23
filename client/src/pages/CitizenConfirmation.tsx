@@ -81,7 +81,7 @@ export default function CitizenConfirmation() {
   const draft = complaint.draftJson;
   const returnRequest = audit.find((event) => event.eventType === "returned");
   const citizenContext = fields.filter((field) => field.source === "citizen_context");
-  const nextFollowUp = getAdaptiveFollowUps(fields.map((field) => ({ key: field.fieldKey, source: field.source }))).find((question) => !skippedFollowUps.has(question.key));
+  const nextFollowUp = getAdaptiveFollowUps(fields.map((field) => ({ key: field.fieldKey, source: field.source })), complaint.sourceTranscript).find((question) => !skippedFollowUps.has(question.key));
   const chosenContextOptions = getCitizenChosenContextOptions(fields.map((field) => ({ key: field.fieldKey, source: field.source })));
   const activeFollowUp = nextFollowUp ?? chosenContextQuestion;
   const playReadBack = () => {

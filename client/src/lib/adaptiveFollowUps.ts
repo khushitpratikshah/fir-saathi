@@ -35,9 +35,17 @@ function coveredContextKeys(fields: Array<Pick<DraftField, "key" | "source">>) {
   return { transcriptKeys, contextKeys };
 }
 
-export function getAdaptiveFollowUps(fields: Array<Pick<DraftField, "key" | "source">>) {
+function hasExplicitTimeOrDate(sourceTranscript?: string) {
+  if (!sourceTranscript) return false;
+  return /\b\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)\b|\b\d{1,2}:\d{2}\b|\b(?:19|20)\d{2}[/-]\d{1,2}[/-]\d{1,2}\b|\b(?:today|yesterday|tomorrow|tonight|morning|afternoon|evening|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|गई?\s?कल|आज|कल|सुबह|शाम|रात|ગઈકાલે|આજે|કાલે|સવારે|સાંજે|રાત્રે|काल|आज|उद्या|सकाळी|संध्याकाळी|रात्री|গতকাল|আজ|আগামীকাল|সকাল|সন্ধ্যা|রাত|நேற்று|இன்று|நாளை|காலை|மாலை|இரவு|నిన్న|నేడు|రేపు|ఉదయం|సాయంత్రం|రాత్రి|ನಿನ್ನೆ|ಇಂದು|ನಾಳೆ|ಬೆಳಿಗ್ಗೆ|ಸಂಜೆ|ರಾತ್ರಿ|ഇന്നലെ|ഇന്ന്|നാളെ|രാവിലെ|വൈകുന്നേരം|രാത്രി|ਕੱਲ੍ਹ|ਅੱਜ|ਸਵੇਰ|ਸ਼ਾਮ|ਰਾਤ/i.test(sourceTranscript);
+}
+
+export function getAdaptiveFollowUps(fields: Array<Pick<DraftField, "key" | "source">>, sourceTranscript?: string) {
   const { transcriptKeys, contextKeys } = coveredContextKeys(fields);
-  return highValueFollowUps.filter((question) => !contextKeys.has(question.key) && !transcriptCoverage[question.key].some((key) => transcriptKeys.has(key)));
+  return highValueFollowUps.filter((question) => {
+    if (contextKeys.has(question.key) || transcriptCoverage[question.key].some((key) => transcriptKeys.has(key))) return false;
+    return question.key !== "incident_when" || !hasExplicitTimeOrDate(sourceTranscript);
+  });
 }
 
 export function getCitizenChosenContextOptions(fields: Array<Pick<DraftField, "key" | "source">>) {

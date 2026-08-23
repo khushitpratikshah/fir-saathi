@@ -100,3 +100,5 @@
 - [x] Browser-validate that the deployed synthetic voice journey does not repeat transcript-covered details, and record the confirmed result transparently.
 - [x] Document the Raspberry Pi recovery for a stale browser/router rollout: verify the bundle, restart the service, and retry from a fresh browser session.
 - [x] Create a detailed context.md project reference for FIR Saathi covering the product, workflow, safeguards, technical architecture, visual design, and deployment context.
+- [x] Fix transcript coverage so clearly source-backed time details do not trigger a repeated time follow-up.
+- [x] Repair desktop text rendering after the responsive hero and follow-up layout changes, then validate desktop and mobile views.
