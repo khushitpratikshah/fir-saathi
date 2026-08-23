@@ -106,3 +106,4 @@
 - [x] Add a repository-scoped GitHub Actions self-hosted runner workflow for controlled automatic deployment to the Raspberry Pi.
 - [x] Align the guarded deployment workflow with the registered Raspberry Pi runner's built-in ARM64 label and verify an automatic rollout.
 - [x] Bootstrap the protected Pi checkout with the committed deployment script before retrying the first runner deployment.
+- [x] Polish FIR Saathi’s landing and application UI for clearer visual hierarchy, richer interaction feedback, and dependable responsive presentation.
