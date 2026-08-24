@@ -38,7 +38,7 @@ function ComplaintReviewContent({ dark }: { dark: boolean }) {
   const page = dark ? "min-h-[calc(100vh-144px)] bg-[#081626] text-slate-100" : "app-real-surface min-h-[calc(100vh-144px)] text-[#102643]";
   const card = dark ? "border-white/10 bg-white/[0.055] text-slate-100" : "border-[#102643]/10 bg-white text-[#102643]";
   const muted = dark ? "text-slate-400" : "text-slate-600";
-  if (detail.isLoading) return <RecordLoading label="Opening the constable review record" />;
+  if (detail.isLoading) return <RecordLoading label="Opening the constable review record" dark={dark} />;
   if (!detail.data) return <main className={`${page} grid place-items-center px-5`}><div className={`max-w-md rounded-2xl border p-7 text-center ${card}`}><CircleAlert className="mx-auto h-8 w-8 text-[#f48a51]" /><h1 className="mt-4 text-2xl font-bold">This review record is unavailable.</h1><p className={`mt-2 text-sm leading-6 ${muted}`}>{detail.error?.message || "The record may have been removed or you may not have access to it."}</p><Link href="/officer" className="focus-ring mt-6 inline-flex rounded-xl bg-[#102643] px-4 py-3 text-sm font-bold text-white">Return to review desk</Link></div></main>;
 
   const { complaint, fields, evidence, audit } = detail.data;

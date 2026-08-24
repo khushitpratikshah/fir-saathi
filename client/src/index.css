@@ -202,6 +202,15 @@ button:disabled { cursor: not-allowed; }
 .app-stage-workspace main > .mx-auto > aside > section { box-shadow: var(--panel-shadow-soft); }
 .app-stage-workspace main > .mx-auto blockquote { text-wrap: pretty; }
 
+.loading-skeleton { animation: none; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); }
+@media (prefers-reduced-motion: no-preference) {
+  .loading-skeleton { animation: loading-skeleton-pulse 1.35s var(--ease-in-out) infinite alternate; }
+}
+@keyframes loading-skeleton-pulse {
+  from { opacity: 0.52; }
+  to { opacity: 0.88; }
+}
+
 .thin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
 .thin-scrollbar::-webkit-scrollbar-thumb { background: rgba(26, 45, 69, 0.2); border-radius: 99px; }
 .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }

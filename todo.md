@@ -148,3 +148,6 @@
 - [x] Refine citizen intake, confirmation, status, and recovery layouts without altering workflow behavior.
 - [x] Polish the constable queue, detailed review, and admin UI hierarchy.
 - [x] Validate the UI refresh across automated checks, responsive layouts, accessibility, and Raspberry Pi deployment.
+- [x] Create compact, reduced-motion-safe loading skeleton primitives for data-dependent FIR Saathi screens.
+- [x] Replace generic loading states on citizen, constable, and administrator routes with contextual skeleton layouts.
+- [x] Validate skeleton rendering, accessibility, tests, production build, and Raspberry Pi deployment.
