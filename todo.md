@@ -156,3 +156,12 @@
 - [x] Add responsive, reduced-motion-safe process animations and interactive visual storytelling.
 - [x] Validate the process page across desktop/mobile layouts, automated checks, and Raspberry Pi deployment.
 - [x] Replace the duplicate administrator screenshot with a distinct, accurate administrator view and refresh the ZIP.
+- [x] Add a short judge-facing walkthrough and one-page safeguards summary beside the demo link.
+- [x] Capture a truthful signed-in administrator dashboard screen and refresh the supporting screenshot package.
+- [x] Raise eyebrow-label contrast to meet the intended normal-text accessibility target.
+- [x] Remove duplicate intake progress messaging and clarify the language-selection control.
+- [x] Use a compact two-column mobile language picker without changing source-language choice behavior.
+- [x] Validate all judge-facing, accessibility, mobile, and deployment changes across tests, builds, screenshots, and Raspberry Pi rollout.
+- [x] Diagnose and repair hosted Samsung Browser font loading, letter spacing, and viewport readability.
+- [x] Add resilient typography and responsive scale fallbacks so headline and body text remain readable without manual zoom.
+- [x] Validate hosted-like rendering, automated checks, production build, and Raspberry Pi deployment for the readability repair.

@@ -6,11 +6,16 @@ const stages = [
   { id: "status", label: "Sent for human review" },
 ] as const;
 
+export function formatCurrentTask(question?: string) {
+  return question === "Choose language" ? "Select source language" : question;
+}
+
 export default function CitizenJourneyProgress({ stage, question, compact = false }: { stage: CitizenJourneyStage; question?: string; compact?: boolean }) {
   const activeIndex = stages.findIndex((item) => item.id === stage);
+  const currentTask = formatCurrentTask(question);
   return (
     <section aria-label="Citizen journey progress" className={`surface-card ${compact ? "p-3" : "p-4 sm:p-5"}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2"><p className="page-eyebrow text-[10px]">Your journey</p>{question && <p className="rounded-full bg-[#f5f2eb] px-2.5 py-1 text-xs font-bold text-[#102643]">{question}</p>}</div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><p className="page-eyebrow text-[10px]">Your journey</p>{currentTask && <p className="text-[11px] font-bold text-slate-600"><span className="mr-1 uppercase tracking-[0.12em] text-slate-500">Current task</span>{currentTask}</p>}</div>
       <ol className="mt-3 grid gap-2.5 sm:grid-cols-3">
         {stages.map((item, index) => {
           const isCurrent = index === activeIndex;
