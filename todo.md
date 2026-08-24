@@ -143,3 +143,8 @@
 - [x] Push the citizen recovery usability update and verify automatic Raspberry Pi deployment.
 - [x] Repair the short-code recovery flow so it does not route an invalid code to an unavailable record status.
 - [x] Push the short-code recovery repair and verify automatic Raspberry Pi deployment.
+- [x] Establish shared UI tokens, action states, and responsive motion refinements for the refresh.
+- [x] Improve the shared navigation, mobile access, footer, and page-chrome hierarchy.
+- [x] Refine citizen intake, confirmation, status, and recovery layouts without altering workflow behavior.
+- [x] Polish the constable queue, detailed review, and admin UI hierarchy.
+- [x] Validate the UI refresh across automated checks, responsive layouts, accessibility, and Raspberry Pi deployment.
