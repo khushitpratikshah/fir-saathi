@@ -131,3 +131,9 @@
 - [x] Add reduced-motion-safe GSAP entrance choreography and layered visual focus to the landing page.
 - [x] Add motion-guided hierarchy to citizen intake and constable review without delaying form controls or decisions.
 - [x] Push the GSAP visual polish release and verify automatic Raspberry Pi deployment.
+- [x] Fix read-back feedback so successful browser playback is not reported as a failure.
+- [x] Align displayed FIR Saathi resume-code format and validation so short citizen codes can be resumed.
+- [ ] Push the repaired citizen recovery flow and verify automatic Raspberry Pi deployment.
+- [x] Ignore benign SpeechSynthesis cancellation/interruption events once read-back has started, while retaining genuine error feedback.
+- [x] Recognize short `FS-…` prototype record references on the resume page and route them to the appropriate record status instead of rejecting them as private codes.
+- [x] Preserve genuine SpeechSynthesis errors after read-back starts while suppressing only benign cancellation/interruption events, with regression coverage before deployment.

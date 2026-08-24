@@ -10,6 +10,7 @@ import TranscriptSegmentReview from "@/components/TranscriptSegmentReview";
 import { getAdaptiveFollowUps, getCitizenChosenContextOptions, type AdaptiveFollowUp } from "@/lib/adaptiveFollowUps";
 import { trpc } from "@/lib/trpc";
 import { getLocalAudioReview } from "@/lib/localAudioReview";
+import { shouldReportReadBackError } from "@/lib/citizenRecovery";
 import type { TranscriptSegment } from "../../../shared/transcriptReview";
 
 const languageLabel = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી", mr: "मराठी", bn: "বাংলা", ta: "தமிழ்", te: "తెలుగు", kn: "ಕನ್ನಡ", ml: "മലയാളം", pa: "ਪੰਜਾਬੀ" } as const;
@@ -109,9 +110,11 @@ export default function CitizenConfirmation() {
     utterance.lang = complaint.language;
     if (voice) utterance.voice = voice;
     utterance.onstart = () => setHasListened(true);
-    utterance.onerror = () => toast.error("Read-back could not play. You may use the accessible text fallback.");
+    utterance.onerror = (event) => {
+      if (shouldReportReadBackError(event.error)) toast.error("Read-back could not play. You may use the accessible text fallback.");
+    };
     window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    window.setTimeout(() => window.speechSynthesis.speak(utterance), 0);
   };
   const seekLocalAudio = (segment: TranscriptSegment) => {
     if (!localAudioRef.current) {
