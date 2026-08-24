@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { ClipboardPenLine, Moon, ShieldCheck, Sun } from "lucide-react";
-import type { PropsWithChildren } from "react";
+import { useLayoutEffect, useRef, type PropsWithChildren } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useAuth } from "@/_core/hooks/useAuth";
 import FirSaathiMark from "@/components/FirSaathiMark";
 
@@ -16,13 +18,42 @@ const navItems = [
   { href: "/officer", label: "Constable review" },
 ];
 
+gsap.registerPlugin(ScrollTrigger);
+
 export default function FirSaathiShell({ children, dark = false, compact = false, showcase = false, officerTheme }: ShellProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const items = user?.role === "admin" ? [...navItems, { href: "/admin", label: "Admin" }] : navItems;
+  const shellRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!shellRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const ctx = gsap.context(() => {
+      const stage = shellRef.current?.querySelector<HTMLElement>(".app-stage");
+      const header = shellRef.current?.querySelector<HTMLElement>(".site-header");
+      if (header) gsap.fromTo(header, { yPercent: -100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.52, ease: "power3.out", clearProps: "transform,opacity" });
+      if (stage) {
+        const hero = stage.querySelector(".navy-surface");
+        if (hero) {
+          gsap.fromTo(stage, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.48, ease: "power3.out", clearProps: "transform,opacity" });
+          gsap.from(hero.querySelectorAll(".fade-up"), { y: 32, opacity: 0, duration: 0.7, ease: "power4.out", stagger: 0.1, clearProps: "transform,opacity" });
+          gsap.from(hero.querySelectorAll(".fade-up-delay"), { y: 24, opacity: 0, duration: 0.64, delay: 0.18, ease: "power3.out", stagger: 0.1, clearProps: "transform,opacity" });
+          gsap.from(hero.querySelectorAll(".impact-orbit"), { y: 28, scale: 0.96, opacity: 0, duration: 0.9, delay: 0.14, ease: "power4.out", clearProps: "transform,opacity" });
+          gsap.to(hero.querySelectorAll(".impact-orbit"), { y: -7, duration: 2.8, ease: "sine.inOut", yoyo: true, repeat: -1 });
+          gsap.utils.toArray<HTMLElement>(stage.querySelectorAll(".paper-noise article, .paper-noise + section article")).forEach((card) => {
+            gsap.from(card, { y: 22, opacity: 0, duration: 0.52, ease: "power3.out", scrollTrigger: { trigger: card, start: "top 88%", once: true }, clearProps: "transform,opacity" });
+          });
+        } else {
+          const workspaceItems = stage.querySelectorAll<HTMLElement>(".workspace-panel, .trust-panel, .resume-panel, main > div > section, main > div > aside");
+          gsap.from(workspaceItems, { y: 18, opacity: 0, duration: 0.42, ease: "power3.out", stagger: 0.055, clearProps: "transform,opacity" });
+        }
+      }
+    }, shellRef);
+    return () => ctx.revert();
+  }, [location, showcase]);
 
   return (
-    <div className={dark ? "min-h-screen bg-[#071525] text-white" : "min-h-screen paper-noise text-[#102643]"}>
+    <div ref={shellRef} className={dark ? "min-h-screen bg-[#071525] text-white" : "min-h-screen paper-noise text-[#102643]"}>
       <header className={`site-header relative z-10 border-b ${dark ? "border-white/10 bg-[#071525]/80" : "border-[#102643]/10 bg-[#fbfaf6]/80"} backdrop-blur-xl`}>
         <div className={`mx-auto flex h-[72px] items-center justify-between px-5 sm:px-8 ${compact ? "max-w-6xl" : "max-w-7xl"}`}>
           <Link href="/" className="focus-ring inline-flex items-center gap-3 rounded-lg">

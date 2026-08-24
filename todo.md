@@ -127,3 +127,7 @@
 - [x] Add access-controlled timestamp seeking for the locally retained recording while preserving encrypted stored evidence and an immutable transcript.
 - [x] Integrate source, citizen context/correction notes, evidence metadata, and officer decisions into an explicit constable side-by-side workspace.
 - [x] Correct returned-case integrity timeline ordering and add chronological regression coverage.
+- [x] Refine FIR Saathi’s visual hierarchy and add accessible GSAP motion across key public, citizen, and constable screens; then push and verify Raspberry Pi deployment.
+- [x] Add reduced-motion-safe GSAP entrance choreography and layered visual focus to the landing page.
+- [x] Add motion-guided hierarchy to citizen intake and constable review without delaying form controls or decisions.
+- [ ] Push the GSAP visual polish release and verify automatic Raspberry Pi deployment.
