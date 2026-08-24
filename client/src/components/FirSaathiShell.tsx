@@ -14,6 +14,7 @@ type ShellProps = PropsWithChildren<{
 }>;
 
 const navItems = [
+  { href: "/process", label: "How it works" },
   { href: "/intake", label: "Citizen intake" },
   { href: "/officer", label: "Constable review" },
 ];

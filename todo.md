@@ -151,3 +151,8 @@
 - [x] Create compact, reduced-motion-safe loading skeleton primitives for data-dependent FIR Saathi screens.
 - [x] Replace generic loading states on citizen, constable, and administrator routes with contextual skeleton layouts.
 - [x] Validate skeleton rendering, accessibility, tests, production build, and Raspberry Pi deployment.
+- [x] Capture and package a curated 5–10 screenshot ZIP of the FIR Saathi application.
+- [x] Create a dedicated route explaining the complete FIR Saathi citizen-to-constable process.
+- [x] Add responsive, reduced-motion-safe process animations and interactive visual storytelling.
+- [x] Validate the process page across desktop/mobile layouts, automated checks, and Raspberry Pi deployment.
+- [ ] Replace the duplicate administrator screenshot with a distinct, accurate administrator view and refresh the ZIP.
