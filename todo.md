@@ -141,3 +141,5 @@
 - [x] Explain the distinct `FS-…` record reference and private `FSR-…` saved-intake code formats where citizens recover access.
 - [x] Add practical retry and device-help guidance when a selected-language browser read-back voice is unavailable.
 - [x] Push the citizen recovery usability update and verify automatic Raspberry Pi deployment.
+- [x] Repair the short-code recovery flow so it does not route an invalid code to an unavailable record status.
+- [ ] Push the short-code recovery repair and verify automatic Raspberry Pi deployment.
