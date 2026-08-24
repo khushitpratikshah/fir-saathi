@@ -130,4 +130,4 @@
 - [x] Refine FIR Saathi’s visual hierarchy and add accessible GSAP motion across key public, citizen, and constable screens; then push and verify Raspberry Pi deployment.
 - [x] Add reduced-motion-safe GSAP entrance choreography and layered visual focus to the landing page.
 - [x] Add motion-guided hierarchy to citizen intake and constable review without delaying form controls or decisions.
-- [ ] Push the GSAP visual polish release and verify automatic Raspberry Pi deployment.
+- [x] Push the GSAP visual polish release and verify automatic Raspberry Pi deployment.
