@@ -137,3 +137,7 @@
 - [x] Ignore benign SpeechSynthesis cancellation/interruption events once read-back has started, while retaining genuine error feedback.
 - [x] Recognize short `FS-…` prototype record references on the resume page and route them to the appropriate record status instead of rejecting them as private codes.
 - [x] Preserve genuine SpeechSynthesis errors after read-back starts while suppressing only benign cancellation/interruption events, with regression coverage before deployment.
+- [x] Add a copy control for short prototype record references on the citizen status screen.
+- [x] Explain the distinct `FS-…` record reference and private `FSR-…` saved-intake code formats where citizens recover access.
+- [x] Add practical retry and device-help guidance when a selected-language browser read-back voice is unavailable.
+- [ ] Push the citizen recovery usability update and verify automatic Raspberry Pi deployment.

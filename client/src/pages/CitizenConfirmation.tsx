@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
-import { ArrowLeft, CheckCircle2, CircleAlert, FileText, Loader2, ShieldCheck, Square, Volume2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleAlert, FileText, Headphones, Loader2, RefreshCcw, ShieldCheck, Square, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import FirSaathiShell from "@/components/FirSaathiShell";
 import CitizenJourneyProgress from "@/components/CitizenJourneyProgress";
@@ -85,6 +85,12 @@ export default function CitizenConfirmation() {
   }, [selectedLanguage]);
 
   const languageName = useMemo(() => selectedLanguage ? languageLabel[selectedLanguage] : "", [selectedLanguage]);
+  const retryReadBackVoice = () => {
+    if (!selectedLanguage || !("speechSynthesis" in window)) return;
+    const available = window.speechSynthesis.getVoices().some((voice) => voice.lang.toLowerCase().startsWith(selectedLanguage));
+    setSpeechAvailable(available);
+    toast.message(available ? "A suitable browser voice is now available." : "No suitable voice is available yet. You can use the text read-back below.");
+  };
 
   if (detail.isLoading) {
     return <FirSaathiShell><RecordLoading label="Opening your source statement" /></FirSaathiShell>;
@@ -153,7 +159,7 @@ export default function CitizenConfirmation() {
               <section className="rounded-2xl border border-[#102643]/10 bg-[#f5f2eb] p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Spoken read-back</p><p className="mt-1 text-sm font-bold text-[#102643]">Listen to your source statement before confirming.</p></div>
-                  {speechAvailable ? <div className="flex gap-2"><button type="button" onClick={playReadBack} className="focus-ring inline-flex items-center gap-2 rounded-lg bg-[#102643] px-3 py-2 text-xs font-bold text-white"><Volume2 className="h-3.5 w-3.5" /> Play read-back</button><button type="button" onClick={() => window.speechSynthesis.cancel()} className="focus-ring inline-flex items-center gap-2 rounded-lg border border-[#102643]/12 bg-white px-3 py-2 text-xs font-bold text-slate-600"><Square className="h-3.5 w-3.5" /> Stop</button></div> : <label className="flex items-start gap-2 rounded-lg border border-[#c64e19]/20 bg-[#fff5ef] p-2.5 text-xs leading-5 text-[#8f360e]"><input type="checkbox" checked={fallbackAcknowledged} onChange={(event) => setFallbackAcknowledged(event.target.checked)} className="focus-ring mt-0.5 h-4 w-4 rounded accent-[#c64e19]" />This browser has no available voice for the selected language. I have read the source record above.</label>}
+                  {speechAvailable ? <div className="flex gap-2"><button type="button" onClick={playReadBack} className="focus-ring inline-flex items-center gap-2 rounded-lg bg-[#102643] px-3 py-2 text-xs font-bold text-white"><Volume2 className="h-3.5 w-3.5" /> Play read-back</button><button type="button" onClick={() => window.speechSynthesis.cancel()} className="focus-ring inline-flex items-center gap-2 rounded-lg border border-[#102643]/12 bg-white px-3 py-2 text-xs font-bold text-slate-600"><Square className="h-3.5 w-3.5" /> Stop</button></div> : <div className="w-full rounded-xl border border-[#c64e19]/20 bg-[#fff5ef] p-3 text-xs leading-5 text-[#8f360e]"><div className="flex gap-2"><Headphones className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-bold">A suitable browser voice is unavailable for {languageName}.</p><p className="mt-1">You can always use the source text above. To try spoken read-back again, check your device’s text-to-speech voice settings and return after downloading or enabling a voice for this language.</p></div></div><button type="button" onClick={retryReadBackVoice} className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[#c64e19]/30 bg-white px-3 py-2 text-xs font-bold text-[#8f360e]"><RefreshCcw className="h-3.5 w-3.5" /> Check voices again</button><label className="mt-3 flex items-start gap-2 border-t border-[#c64e19]/15 pt-3"><input type="checkbox" checked={fallbackAcknowledged} onChange={(event) => setFallbackAcknowledged(event.target.checked)} className="focus-ring mt-0.5 h-4 w-4 rounded accent-[#c64e19]" />I have read the source record above and want to continue using the accessible text fallback.</label></div>}
                 </div>
                 {speechAvailable && <p className="mt-3 text-xs leading-5 text-slate-600">The browser reads the source statement in the selected language. Playback is not stored.</p>}
                 {hasListened && <p className="mt-3 text-xs font-bold text-[#15803d]">Read-back started. You may now confirm or return to make a correction.</p>}
