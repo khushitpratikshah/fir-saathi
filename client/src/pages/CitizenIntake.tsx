@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { userFacingGroqError } from "@/lib/groqTranscription";
 import { getSourceStatementReadiness } from "@/lib/sourceStatementReadiness";
 import { getAudioLevelFeedback, type AudioLevelFeedback } from "@/lib/audioLevel";
+import { retainLocalAudioReview } from "@/lib/localAudioReview";
 
 const languages = [
   { code: "en", label: "English", native: "English" },
@@ -334,6 +335,7 @@ export default function CitizenIntake() {
           if (activeVoiceAttemptRef.current !== attemptId) return;
           finishVoiceAttempt();
           setVoiceState("idle");
+          if (audioPreviewUrl) retainLocalAudioReview(publicId, audioPreviewUrl);
           navigate(`/confirm/${publicId}`);
         },
         onError: (error) => {

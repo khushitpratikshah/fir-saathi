@@ -1,10 +1,15 @@
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const DRAFT_MODEL = "openai/gpt-oss-20b";
+import type { TranscriptSegment } from "../shared/transcriptReview";
+
 const TRANSCRIPTION_MODEL = "whisper-large-v3";
 
 type JsonSchema = Record<string, unknown>;
 
-type TranscriptSegment = {
+type GroqTranscriptSegment = {
+  start?: number;
+  end?: number;
+  text?: string;
   avg_logprob?: number;
   compression_ratio?: number;
   no_speech_prob?: number;
@@ -18,7 +23,7 @@ export type TranscriptionQuality = {
   unusualCompressionSegments: number;
 };
 
-export function assessTranscriptionQuality(input: { text: string; segments?: TranscriptSegment[] }): TranscriptionQuality {
+export function assessTranscriptionQuality(input: { text: string; segments?: GroqTranscriptSegment[] }): TranscriptionQuality {
   const segments = Array.isArray(input.segments) ? input.segments : [];
   const lowConfidenceSegments = segments.filter((segment) => typeof segment.avg_logprob === "number" && segment.avg_logprob <= -0.85).length;
   const likelyNonSpeechSegments = segments.filter((segment) => typeof segment.no_speech_prob === "number" && segment.no_speech_prob >= 0.72).length;
@@ -117,10 +122,13 @@ export async function groqTranscribe(input: { audio: Buffer; mimeType: string; l
     body: formData,
   }, 45_000);
   if (!response.ok) throw new Error(`Portable transcription provider returned ${response.status}.`);
-  const payload = await response.json() as { text?: string; language?: string; segments?: TranscriptSegment[] };
+  const payload = await response.json() as { text?: string; language?: string; segments?: GroqTranscriptSegment[] };
   if (typeof payload.text !== "string" || !payload.text.trim()) throw new Error("The recording did not contain a usable transcript.");
   const text = payload.text.trim();
   const quality = assessTranscriptionQuality({ text, segments: payload.segments });
   if (quality.assessment === "retry") throw new Error("The recording appears to contain too little clear speech. Please record again in a quieter space or use text input.");
-  return { text, language: payload.language ?? input.language, quality };
+  const segments: TranscriptSegment[] = (payload.segments ?? []).flatMap((segment) => typeof segment.start === "number" && typeof segment.end === "number" && typeof segment.text === "string" && segment.text.trim()
+    ? [{ startSeconds: segment.start, endSeconds: segment.end, text: segment.text.trim() }]
+    : []);
+  return { text, language: payload.language ?? input.language, quality, segments };
 }

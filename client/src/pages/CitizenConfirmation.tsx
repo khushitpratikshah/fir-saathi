@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { ArrowLeft, CheckCircle2, CircleAlert, FileText, Loader2, ShieldCheck, Square, Volume2 } from "lucide-react";
 import { toast } from "sonner";
@@ -6,8 +6,11 @@ import FirSaathiShell from "@/components/FirSaathiShell";
 import CitizenJourneyProgress from "@/components/CitizenJourneyProgress";
 import ComplaintStatusPill from "@/components/ComplaintStatusPill";
 import RecordLoading from "@/components/RecordLoading";
+import TranscriptSegmentReview from "@/components/TranscriptSegmentReview";
 import { getAdaptiveFollowUps, getCitizenChosenContextOptions, type AdaptiveFollowUp } from "@/lib/adaptiveFollowUps";
 import { trpc } from "@/lib/trpc";
+import { getLocalAudioReview } from "@/lib/localAudioReview";
+import type { TranscriptSegment } from "../../../shared/transcriptReview";
 
 const languageLabel = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી", mr: "मराठी", bn: "বাংলা", ta: "தமிழ்", te: "తెలుగు", kn: "ಕನ್ನಡ", ml: "മലയാളം", pa: "ਪੰਜਾਬੀ" } as const;
 
@@ -15,6 +18,8 @@ export default function CitizenConfirmation() {
   const [, params] = useRoute("/confirm/:publicId");
   const [, navigate] = useLocation();
   const publicId = params?.publicId ?? "";
+  const localAudioUrl = useMemo(() => getLocalAudioReview(publicId), [publicId]);
+  const localAudioRef = useRef<HTMLAudioElement | null>(null);
   const detail = trpc.complaints.get.useQuery({ publicId }, { enabled: Boolean(publicId) });
   const [speechAvailable, setSpeechAvailable] = useState(false);
   const [hasListened, setHasListened] = useState(false);
@@ -23,6 +28,8 @@ export default function CitizenConfirmation() {
   const [followUpValue, setFollowUpValue] = useState("");
   const [skippedFollowUps, setSkippedFollowUps] = useState<Set<string>>(() => new Set());
   const [chosenContextQuestion, setChosenContextQuestion] = useState<AdaptiveFollowUp | null>(null);
+  const [selectedSegment, setSelectedSegment] = useState<TranscriptSegment | null>(null);
+  const [transcriptCorrection, setTranscriptCorrection] = useState("");
   const selectedLanguage = detail.data?.complaint.language;
 
   const confirm = trpc.complaints.confirm.useMutation({
@@ -47,6 +54,15 @@ export default function CitizenConfirmation() {
       setFollowUpValue("");
       setChosenContextQuestion(null);
       toast.success("Your detail was saved separately from the source statement.");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const addTranscriptCorrection = trpc.complaints.addTranscriptCorrection.useMutation({
+    onSuccess: async () => {
+      await utils.complaints.get.invalidate({ publicId });
+      setTranscriptCorrection("");
+      setSelectedSegment(null);
+      toast.success("Your correction note was added separately from the source statement.");
     },
     onError: (error) => toast.error(error.message),
   });
@@ -77,11 +93,12 @@ export default function CitizenConfirmation() {
     return <FirSaathiShell><main className="grid min-h-[calc(100vh-144px)] place-items-center px-5"><div className="max-w-md text-center"><CircleAlert className="mx-auto h-8 w-8 text-[#c64e19]" /><h1 className="mt-4 text-3xl font-bold tracking-[-0.04em]">This draft is unavailable.</h1><p className="mt-2 text-sm leading-6 text-slate-600">The prototype record could not be found or opened.</p><Link href="/intake" className="focus-ring mt-6 inline-flex rounded-xl bg-[#102643] px-4 py-3 text-sm font-bold text-white">Return to intake</Link></div></main></FirSaathiShell>;
   }
 
-  const { complaint, fields, audit } = detail.data;
+  const { complaint, fields, evidence, audit } = detail.data;
   const draft = complaint.draftJson;
   const returnRequest = audit.find((event) => event.eventType === "returned");
   const needsCarefulTranscriptReview = audit.some((event) => event.eventType === "transcribed" && /careful citizen read-back/i.test(event.newValue ?? ""));
   const citizenContext = fields.filter((field) => field.source === "citizen_context");
+  const transcriptSegments = evidence.flatMap((item) => item.encryptionMetadata?.transcriptSegments ?? []);
   const nextFollowUp = getAdaptiveFollowUps(fields.map((field) => ({ key: field.fieldKey, source: field.source })), complaint.sourceTranscript).find((question) => !skippedFollowUps.has(question.key));
   const chosenContextOptions = getCitizenChosenContextOptions(fields.map((field) => ({ key: field.fieldKey, source: field.source })));
   const activeFollowUp = nextFollowUp ?? chosenContextQuestion;
@@ -95,6 +112,14 @@ export default function CitizenConfirmation() {
     utterance.onerror = () => toast.error("Read-back could not play. You may use the accessible text fallback.");
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
+  };
+  const seekLocalAudio = (segment: TranscriptSegment) => {
+    if (!localAudioRef.current) {
+      toast.message("The original recording is not retained in this browser session. You can still review the source text and add a separate note.");
+      return;
+    }
+    localAudioRef.current.currentTime = segment.startSeconds;
+    void localAudioRef.current.play().catch(() => toast.message("Playback needs a browser interaction. Use the audio controls to listen at the selected time."));
   };
 
   return (
@@ -115,6 +140,10 @@ export default function CitizenConfirmation() {
                 <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Your source statement</p><p className="mt-1 text-xs font-semibold text-[#c64e19]">{languageName}</p></div><span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#15803d]"><ShieldCheck className="h-3.5 w-3.5" /> Kept separately</span></div>
                 <blockquote lang={complaint.language} className="mt-5 border-l-2 border-[#c64e19] pl-4 text-base leading-8 text-[#102643]">{complaint.sourceTranscript}</blockquote>
               </section>
+
+              {localAudioUrl && <section className="rounded-2xl border border-[#102643]/10 bg-[#f5f2eb] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">This-browser recording review</p><p className="mt-2 text-xs leading-5 text-slate-600">This preview is available only during this browser session. The stored evidence remains encrypted and is not exposed here.</p><audio ref={localAudioRef} controls preload="metadata" src={localAudioUrl} className="mt-3 h-9 w-full" aria-label="Original recorded statement preview" /></section>}
+              <TranscriptSegmentReview segments={transcriptSegments} selected={selectedSegment} onSelect={setSelectedSegment} onSeek={localAudioUrl ? seekLocalAudio : undefined} title="Review transcript timecodes" />
+              {selectedSegment && <section className="rounded-2xl border border-[#c64e19]/20 bg-[#fff7f2] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a83d10]">Add a correction note</p><p className="mt-2 text-sm font-bold text-[#102643]">About “{selectedSegment.text}”</p><p className="mt-1 text-xs leading-5 text-slate-600">Your note is saved separately. It will not replace or rewrite the original transcript.</p><textarea value={transcriptCorrection} onChange={(event) => setTranscriptCorrection(event.target.value)} maxLength={1000} rows={3} className="focus-ring mt-4 w-full resize-y rounded-xl border border-[#c64e19]/25 bg-white p-3 text-sm leading-6 text-[#102643]" placeholder="For example, clarify a name, place, number, or word you think the transcript captured incorrectly." /><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-[11px] text-slate-500">{transcriptCorrection.length}/1000</p><div className="flex gap-2"><button type="button" onClick={() => { setSelectedSegment(null); setTranscriptCorrection(""); }} className="focus-ring rounded-lg px-3 py-2 text-xs font-bold text-slate-600">Cancel</button><button type="button" disabled={transcriptCorrection.trim().length < 2 || addTranscriptCorrection.isPending} onClick={() => addTranscriptCorrection.mutate({ publicId, passage: selectedSegment.text, startSeconds: selectedSegment.startSeconds, endSeconds: selectedSegment.endSeconds, note: transcriptCorrection })} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#102643] px-3 text-xs font-bold text-white disabled:opacity-50">{addTranscriptCorrection.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Save separate note</button></div></div></section>}
 
               {needsCarefulTranscriptReview && <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5"><div className="flex gap-3"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" /><div><p className="text-sm font-bold text-amber-950">Please check this transcript carefully.</p><p className="mt-1 text-xs leading-5 text-amber-900">The speech service detected one or more unclear audio segments. It did not change your words. Use the read-back below and return to intake for a new recording if the source text is not what you said.</p></div></div></section>}
 

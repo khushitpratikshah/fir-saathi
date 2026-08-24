@@ -119,3 +119,11 @@
 - [x] Show an explicit transcription-quality cue at confirmation without changing the immutable source transcript.
 - [x] Add accessible, privacy-preserving live audio-level indicators to the voice recording interface, then push and verify automatic Raspberry Pi deployment.
 - [x] Push the live audio-level indicator update and verify its Raspberry Pi runner deployment succeeds.
+- [x] Add timestamped transcript review linked to the original recorded audio without rewriting the source transcript.
+- [x] Add structured citizen correction notes that reference a selected transcript passage and remain separate from the immutable source record.
+- [x] Strengthen the constable review workspace with an explicit side-by-side source, context, evidence, and decision layout.
+- [x] Add a unified evidence-integrity timeline for capture, transcription, confirmation, and human review events.
+- [ ] Push the four-feature workflow release and verify automatic Raspberry Pi deployment.
+- [x] Add access-controlled timestamp seeking for the locally retained recording while preserving encrypted stored evidence and an immutable transcript.
+- [x] Integrate source, citizen context/correction notes, evidence metadata, and officer decisions into an explicit constable side-by-side workspace.
+- [x] Correct returned-case integrity timeline ordering and add chronological regression coverage.

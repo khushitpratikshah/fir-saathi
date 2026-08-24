@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { nanoid } from "nanoid";
 import { BNS_REVIEW_REFERENCES, EMPTY_DRAFT, INTAKE_DRAFT_EXPIRY_HOURS, type BnsSuggestion, type CitizenContext, type ComplaintStatus, type DraftField, type ResumableIntakeDraft, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
+import { buildTranscriptCorrectionValue, type TranscriptSegment } from "../shared/transcriptReview";
 import { generateSafeDraft } from "./drafting";
 import { groqTranscribe } from "./groqProvider";
 import { portableEvidencePut, portableEvidenceSignedUrl } from "./portableStorage";
@@ -38,7 +39,7 @@ type SupabaseEvidence = {
   mime_type: string | null;
   byte_size: number | null;
   sha256: string | null;
-  encryption_metadata: { algorithm?: string; iv?: string; encrypted?: boolean } | null;
+  encryption_metadata: { algorithm?: string; iv?: string; encrypted?: boolean; transcriptSegments?: TranscriptSegment[] } | null;
   tamper_status: "not_checked" | "match" | "mismatch" | "unavailable";
   created_at: string;
 };
@@ -313,7 +314,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
   if (!complaint) throw new Error("Unable to create the voice draft record.");
   try {
     const evidence = await portableEvidencePut(publicId, encryptedAudio);
-    await supabaseRequest("fir_saathi_audio_evidence", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, storage_key: evidence.key, mime_type: input.mimeType, byte_size: encryptedAudio.length, sha256: input.ciphertextSha256, encryption_metadata: { algorithm: "AES-GCM", iv: input.ivBase64, encrypted: true }, tamper_status: "match" }) });
+    await supabaseRequest("fir_saathi_audio_evidence", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, storage_key: evidence.key, mime_type: input.mimeType, byte_size: encryptedAudio.length, sha256: input.ciphertextSha256, encryption_metadata: { algorithm: "AES-GCM", iv: input.ivBase64, encrypted: true, transcriptSegments: transcription.segments }, tamper_status: "match" }) });
     await Promise.all([
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created voice draft", reason: null }),
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype transcription service", actor_role: "system", event_type: "transcribed", field_key: null, previous_value: null, new_value: `Source transcript captured (${sourceTranscript.length} characters); ${transcription.quality.assessment === "review" ? "automated quality indicators request careful citizen read-back" : "automated quality indicators did not request extra read-back"}; raw audio not persisted`, reason: null }),
@@ -325,7 +326,17 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
     await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "DELETE", prefer: "return=minimal" });
     throw error;
   }
-  return { publicId, transcript: sourceTranscript, detectedLanguage: transcription.language, quality: transcription.quality };
+  return { publicId, transcript: sourceTranscript, detectedLanguage: transcription.language, quality: transcription.quality, transcriptSegments: transcription.segments };
+}
+
+export async function addTranscriptCorrection(input: { publicId: string; passage: string; startSeconds: number; endSeconds: number; note: string }) {
+  const complaint = await requireComplaint(input.publicId);
+  if (complaint.status !== "needs_citizen_confirmation" && complaint.status !== "returned") throw new Error("A transcript correction note can only be added before final verification.");
+  const value = buildTranscriptCorrectionValue(input);
+  const fieldKey = `transcript_correction_${Date.now()}`;
+  await supabaseRequest("fir_saathi_complaint_fields", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, field_key: fieldKey, label: "Citizen transcript correction note", value, source: "citizen_context", confidence: "manual", verification_state: "unverified" }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "context_added", field_key: fieldKey, previous_value: null, new_value: "Citizen correction note added separately and linked to a source transcript timestamp", reason: null });
+  return { success: true };
 }
 
 export async function verifyEvidenceHash(input: { publicId: string; evidenceId: string; actorLabel: string }) {
