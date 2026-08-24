@@ -7,7 +7,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import WorkspaceListSkeleton from "@/components/WorkspaceListSkeleton";
 
-export default function AdminDashboard() { return <FirSaathiShell compact><OfficerAccessGate><AdminContent /></OfficerAccessGate></FirSaathiShell>; }
+export default function AdminDashboard() { return <FirSaathiShell compact><OfficerAccessGate audience="administrator"><AdminContent /></OfficerAccessGate></FirSaathiShell>; }
 
 function AdminContent() {
   const { user } = useAuth();

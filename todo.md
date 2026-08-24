@@ -155,4 +155,4 @@
 - [x] Create a dedicated route explaining the complete FIR Saathi citizen-to-constable process.
 - [x] Add responsive, reduced-motion-safe process animations and interactive visual storytelling.
 - [x] Validate the process page across desktop/mobile layouts, automated checks, and Raspberry Pi deployment.
-- [ ] Replace the duplicate administrator screenshot with a distinct, accurate administrator view and refresh the ZIP.
+- [x] Replace the duplicate administrator screenshot with a distinct, accurate administrator view and refresh the ZIP.
