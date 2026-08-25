@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-describe("Supabase service-role configuration", () => {
+const describeLive = process.env.RUN_LIVE_PROVIDER_TESTS === "1" ? describe : describe.skip;
+
+describeLive("Supabase service-role configuration", () => {
   it("can reach the protected FIR Saathi complaints endpoint", async () => {
     const url = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

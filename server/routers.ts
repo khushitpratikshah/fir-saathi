@@ -16,7 +16,7 @@ const citizenContextSchema = z.object({
   property_or_loss: z.string().trim().max(500).optional(),
   injury_or_safety: z.string().trim().max(500).optional(),
   follow_up_contact: z.string().trim().max(320).optional(),
-}).default({});
+}).strict().default({});
 
 export const portableSessionInputSchema = z.object({
   accessToken: z.string().min(20).max(20_000),

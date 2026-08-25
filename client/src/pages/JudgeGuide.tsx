@@ -17,6 +17,7 @@ const safeguards = [
   ["AI is assistive", "The assistant may surface source-backed gaps; it must not translate, formalise, invent, or decide."],
   ["Questions stay optional", "The product only asks a material follow-up when the detail is not already present or separately added."],
   ["People retain authority", "Citizen confirmation and constable verification are explicit checkpoints, with role enforcement on the server."],
+  ["Withdrawal preserves an audit tombstone", "Withdrawing a prototype record removes it from normal workspaces and revokes private access. Minimal status and audit metadata remain deliberately for prototype integrity; this is not certified legal erasure."],
   ["Prototype boundaries stay visible", "FIR Saathi does not register an FIR and must not be used for emergencies, urgent complaints, or sensitive evidence."],
 ] as const;
 

@@ -9,7 +9,9 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:live-adversarial": "tsx server/runLiveAdversarialEval.ts",
+    "eval:transcript-confidence": "tsx server/runTranscriptConfidenceCalibration.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",

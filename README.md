@@ -43,7 +43,7 @@ In Supabase **Authentication → URL Configuration**, set the Site URL to your f
 
 ## Security notes
 
-Keep `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, and `FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL` on the server only. The browser needs only the Supabase URL and publishable key. Review Supabase RLS policies and restrict who can use the administrator account before using the prototype beyond demonstrations.
+Keep `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, and `FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL` on the server only. The browser needs only the Supabase URL and publishable key. Review Supabase RLS policies and restrict who can use the administrator account before using the prototype beyond demonstrations. `pnpm test` is intentionally offline and clone-safe; optional provider smoke tests require both `RUN_LIVE_PROVIDER_TESTS=1` and the relevant real server-side credentials.
 
 ### Citizen record lifecycle and private codes
 
@@ -55,6 +55,20 @@ Records created before private access-code support cannot be safely reopened bec
 
 The connected project's Supabase Security Advisor currently reports leaked-password protection as disabled. This repository has no supported management API or MCP action that can change that Auth setting. Supabase documents that leaked-password protection is available only on the **Pro plan and above**; it therefore cannot truthfully be marked enabled for the current Free-plan project. If the project is upgraded, an administrator should open **Authentication → Attack Protection** (or the current project Auth settings), enable **Leaked password protection**, and retain strong password-length and character requirements. See [Supabase’s password-security guidance](https://supabase.com/docs/guides/auth/password-security) for the current control location and plan availability.
 
-## Reproducible adversarial evaluation
+## Reproducible deterministic guardrail evaluation
 
-The repository includes a deterministic, no-network adversarial harness in `server/adversarialEval.test.ts`. It exercises **40/40 blocked probes**: four failure modes across all ten supported language scripts. The probes verify that untrusted instruction-like text cannot create unsupported workflow fields, invented source quotes are dropped, under-evidenced BNS suggestions collapse to `REVIEW`, and non-catalogue BNS codes collapse to `REVIEW`. Run it with `pnpm test`.
+The repository includes a deterministic, no-network guardrail harness in `server/adversarialEval.test.ts`. It verifies **four post-generation invariants across ten supported scripts**: unsupported workflow fields are discarded, invented source quotes are discarded, under-evidenced catalogue suggestions collapse to `REVIEW`, and non-catalogue BNS codes collapse to `REVIEW`. It also covers delimiter breakout, role-play framing, zero-width obfuscation, a homoglyph variant, and unknown context-key rejection.
+
+This is deliberately **not** presented as a measured live-model prompt-injection pass rate. The harness tests the server’s deterministic output and input boundaries; it does not invoke Groq or establish that every model-level attack will fail. Run it with `pnpm test`.
+
+### Opt-in live-model check
+
+`pnpm eval:live-adversarial` is an explicitly opt-in Groq run (`RUN_LIVE_GROQ_EVAL=1`) that sends ten hostile source statements to the configured drafting model and writes the exact classified outcome to `docs/evaluations/live-groq-adversarial-latest.json`. It is excluded from ordinary tests and deployment gates because it consumes provider quota and provider/model revisions change results.
+
+The current recorded run evaluated **4 of 10** responses as parseable JSON. Of those four, **2 produced an unsafe non-`REVIEW` BNS suggestion from an instruction-only source (50%)**; the deterministic normaliser mitigated both, leaving **0 unmitigated evaluated responses**. The other **6 of 10** responses were unusable JSON and are explicitly not counted as “blocked.” This is a small, time-stamped observation, not a stability claim or a provider benchmark; rerun it after changing the model, prompt, schema, or normalisers.
+
+## Transcription confidence and language-quality evidence
+
+`avg_logprob` metadata is retained with transcript segments, but FIR Saathi no longer uses the previous unvalidated `-0.85` cutoff to colour a citizen’s wording. Amber segment highlighting stays disabled until a provider-matched calibration achieves the documented precision requirement on at least 100 independently reference-checked segments. The repository contains an opt-in calculation command and exact input contract in [`docs/evaluations/REFERENCE_TRANSCRIPT_FORMAT.md`](docs/evaluations/REFERENCE_TRANSCRIPT_FORMAT.md).
+
+The project also does **not** claim that Malayalam, Punjabi, or any other supported language exceeds a particular WER. Published benchmarks for another model or corpus cannot establish the deployed Groq provider’s performance. The evidence boundary, candidate reference corpora, and activation criteria are documented in [`docs/ASR_EVALUATION_PROTOCOL.md`](docs/ASR_EVALUATION_PROTOCOL.md).

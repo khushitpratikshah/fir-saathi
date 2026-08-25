@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { portableEvidencePut, portableEvidenceRemove, portableEvidenceSignedUrl } from "./portableStorage";
 
-describe("portable Supabase evidence storage", () => {
+const describeLive = process.env.RUN_LIVE_PROVIDER_TESTS === "1" ? describe : describe.skip;
+
+describeLive("portable Supabase evidence storage", () => {
   it("stores and retrieves encrypted synthetic bytes through a signed URL", async () => {
     const input = Buffer.from("fir-saathi-portable-storage-test", "utf8");
     const stored = await portableEvidencePut("test-cleanup", input);

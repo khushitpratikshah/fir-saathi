@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-describe("Groq portable provider configuration", () => {
+const describeLive = process.env.RUN_LIVE_PROVIDER_TESTS === "1" ? describe : describe.skip;
+
+describeLive("Groq portable provider configuration", () => {
   it("can reach Groq’s OpenAI-compatible models endpoint", async () => {
     const apiKey = process.env.GROQ_API_KEY;
     expect(apiKey).toBeTruthy();

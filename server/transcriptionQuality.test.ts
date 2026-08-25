@@ -7,8 +7,8 @@ describe("transcription quality assessment", () => {
     expect(assessTranscriptionQuality({ text: "A longer but likely non-speech result", segments: [{ no_speech_prob: 0.8 }, { no_speech_prob: 0.76 }] }).assessment).toBe("retry");
   });
 
-  it("flags uncertain segments for careful citizen read-back without rewriting text", () => {
-    expect(assessTranscriptionQuality({ text: "My phone was taken at the bus stop yesterday.", segments: [{ avg_logprob: -0.92, no_speech_prob: 0.08 }] })).toMatchObject({ assessment: "review", lowConfidenceSegments: 1 });
+  it("does not turn uncalibrated log-probability metadata into a citizen-facing warning", () => {
+    expect(assessTranscriptionQuality({ text: "My phone was taken at the bus stop yesterday.", segments: [{ avg_logprob: -0.92, no_speech_prob: 0.08 }] })).toMatchObject({ assessment: "clear", lowConfidenceSegments: 0 });
   });
 
   it("accepts clear transcription metadata", () => {

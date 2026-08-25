@@ -1,6 +1,7 @@
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-const DRAFT_MODEL = "openai/gpt-oss-20b";
+export const DRAFT_MODEL = "openai/gpt-oss-20b";
 import type { TranscriptSegment } from "../shared/transcriptReview";
+import { isLowConfidenceSegment } from "../shared/transcriptReview";
 
 const TRANSCRIPTION_MODEL = "whisper-large-v3";
 
@@ -25,7 +26,7 @@ export type TranscriptionQuality = {
 
 export function assessTranscriptionQuality(input: { text: string; segments?: GroqTranscriptSegment[] }): TranscriptionQuality {
   const segments = Array.isArray(input.segments) ? input.segments : [];
-  const lowConfidenceSegments = segments.filter((segment) => typeof segment.avg_logprob === "number" && segment.avg_logprob <= -0.85).length;
+  const lowConfidenceSegments = segments.filter((segment) => isLowConfidenceSegment({ startSeconds: segment.start ?? 0, endSeconds: segment.end ?? 0, text: segment.text ?? "", ...(typeof segment.avg_logprob === "number" ? { avgLogprob: segment.avg_logprob } : {}) })).length;
   const likelyNonSpeechSegments = segments.filter((segment) => typeof segment.no_speech_prob === "number" && segment.no_speech_prob >= 0.72).length;
   const unusualCompressionSegments = segments.filter((segment) => typeof segment.compression_ratio === "number" && segment.compression_ratio >= 2.7).length;
   const shortTranscript = Array.from(input.text.trim()).length < 8;
@@ -57,11 +58,11 @@ async function requestWithTimeout(url: string, init: RequestInit, timeoutMs: num
   }
 }
 
-export async function groqStructuredDraft(input: { systemPrompt: string; userPrompt: string; schema: JsonSchema }) {
+export async function groqStructuredDraft(input: { systemPrompt: string; userPrompt: string; schema: JsonSchema; maxCompletionTokens?: number }) {
   const strictBody = {
     model: DRAFT_MODEL,
     temperature: 0.000001,
-    max_completion_tokens: 1_800,
+    max_completion_tokens: input.maxCompletionTokens ?? 1_800,
     messages: [
       { role: "system", content: input.systemPrompt },
       { role: "user", content: input.userPrompt },
@@ -99,6 +100,34 @@ export async function groqStructuredDraft(input: { systemPrompt: string; userPro
   const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null } }> };
   const content = payload.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) throw new Error("Portable drafting provider returned no structured content.");
+  return content;
+}
+
+/**
+ * Explicitly unstructured request path for adversarial evaluation only. Production
+ * drafting must continue to use `groqStructuredDraft` and its JSON schema.
+ */
+export async function groqPlainJsonDraft(input: { systemPrompt: string; userPrompt: string; maxCompletionTokens?: number }) {
+  const response = await requestWithTimeout(`${GROQ_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: { ...groqHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: DRAFT_MODEL,
+      temperature: 0.000001,
+      max_completion_tokens: input.maxCompletionTokens ?? 700,
+      messages: [
+        { role: "system", content: `${input.systemPrompt}\n\nFor this evaluation, return one JSON object with fields, missingDetails, followUpQuestions, and bnsSuggestions. Do not use markdown.` },
+        { role: "user", content: input.userPrompt },
+      ],
+    }),
+  }, 25_000);
+  if (!response.ok) {
+    const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300);
+    throw new Error(`Portable drafting provider returned ${response.status}: ${detail}`);
+  }
+  const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null } }> };
+  const content = payload.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || !content.trim()) throw new Error("Portable drafting provider returned no JSON evaluation content.");
   return content;
 }
 
