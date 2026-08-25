@@ -43,4 +43,18 @@ In Supabase **Authentication → URL Configuration**, set the Site URL to your f
 
 ## Security notes
 
-Keep `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, and `FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL` on the server only. The browser needs only the Supabase URL and publishable key. In Supabase Auth password-security settings, enable leaked-password protection before opening account registration to a wider audience. Review Supabase RLS policies and restrict who can use the administrator account before using the prototype beyond demonstrations.
+Keep `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, and `FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL` on the server only. The browser needs only the Supabase URL and publishable key. Review Supabase RLS policies and restrict who can use the administrator account before using the prototype beyond demonstrations.
+
+### Citizen record lifecycle and private codes
+
+Each newly created prototype record has a public `FS-…` reference and a separate, browser-session-held private `FSC-…` capability. The server stores only a SHA-256 hash of that capability. A citizen can replace the private code from the status screen; the previous code is revoked immediately and the replacement is returned only once. Citizens can also withdraw the active prototype record. Withdrawal clears the stored capability, blocks all later citizen and constable workflow actions, and redacts the content from normal workspaces while retaining a minimal withdrawal tombstone and audit entry. It is intentionally **not** represented as a real-FIR withdrawal, legal erasure certification, or deletion from every external backup or retention system.
+
+Records created before private access-code support cannot be safely reopened because no recoverable capability exists; begin a new intake rather than attempting to restore access using the short public reference alone.
+
+### Supabase password safeguard status
+
+The connected project's Supabase Security Advisor currently reports leaked-password protection as disabled. This repository has no supported management API or MCP action that can change that Auth setting. Supabase documents that leaked-password protection is available only on the **Pro plan and above**; it therefore cannot truthfully be marked enabled for the current Free-plan project. If the project is upgraded, an administrator should open **Authentication → Attack Protection** (or the current project Auth settings), enable **Leaked password protection**, and retain strong password-length and character requirements. See [Supabase’s password-security guidance](https://supabase.com/docs/guides/auth/password-security) for the current control location and plan availability.
+
+## Reproducible adversarial evaluation
+
+The repository includes a deterministic, no-network adversarial harness in `server/adversarialEval.test.ts`. It exercises **40/40 blocked probes**: four failure modes across all ten supported language scripts. The probes verify that untrusted instruction-like text cannot create unsupported workflow fields, invented source quotes are dropped, under-evidenced BNS suggestions collapse to `REVIEW`, and non-catalogue BNS codes collapse to `REVIEW`. Run it with `pnpm test`.

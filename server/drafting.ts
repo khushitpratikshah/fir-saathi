@@ -13,6 +13,8 @@ const REVIEW_SUGGESTION: BnsSuggestion = {
 
 const SAFE_NOTE = "The source statement is preserved as entered. The assistant may only identify missing details and ask follow-up questions; it does not translate, formalise, or add facts.";
 
+const FIELD_KEYS = ["incident", "person", "location", "date_time", "property", "injury", "witness", "vehicle", "threat_or_safety"] as const;
+
 const languageNames: Record<SupportedLanguage, string> = {
   en: "English", hi: "Hindi", gu: "Gujarati", mr: "Marathi", bn: "Bengali", ta: "Tamil", te: "Telugu", kn: "Kannada", ml: "Malayalam", pa: "Punjabi",
 };
@@ -20,7 +22,7 @@ const languageNames: Record<SupportedLanguage, string> = {
 const fieldSchema = {
   type: "object",
   properties: {
-    key: { type: "string", enum: ["incident", "person", "location", "date_time", "property", "injury", "witness", "vehicle", "threat_or_safety"] },
+    key: { type: "string", enum: FIELD_KEYS },
     label: { type: "string" },
     sourceQuote: { type: "string" },
     required: { type: "boolean" },
@@ -83,14 +85,17 @@ export function normaliseBnsSuggestions(value: unknown, sourceStatement = ""): B
     const reference = typeof candidate.sectionCode === "string" ? allowed.get(candidate.sectionCode) : undefined;
     if (!reference) return [];
     const sourceQuotes = Array.isArray(candidate.sourceQuotes) ? candidate.sourceQuotes.filter((quote): quote is string => typeof quote === "string" && quote.trim().length > 0 && sourceStatement.includes(quote)).map((quote) => quote.trim()).slice(0, 3) : [];
-    if (!sourceQuotes.length) return [];
+    const distinctQuotes = Array.from(new Set(sourceQuotes));
     const missingFactors = asStringArray(candidate.missingFactors);
+    // A suggestion with incomplete evidence is only retained when it makes the
+    // unresolved factor explicit. Bare superficial matches collapse to REVIEW.
+    if (!distinctQuotes.length || (distinctQuotes.length < reference.eligibilityIndicators.length && !missingFactors.length)) return [];
     return [{
       sectionCode: reference.sectionCode,
       title: reference.title,
       confidence: candidate.confidence === "medium" ? "medium" : "review",
       rationale: typeof candidate.rationale === "string" && candidate.rationale.trim() ? candidate.rationale.trim().slice(0, 500) : "Source-grounded review aid; officer assessment is required.",
-      sourceQuotes,
+      sourceQuotes: distinctQuotes,
       missingFactors,
       suitability: candidate.suitability === "possible_match" ? "possible_match" : "needs_officer_assessment",
       sourceUrl: reference.sourceUrl,
@@ -109,7 +114,7 @@ export function normaliseFields(value: unknown, sourceStatement: string): DraftF
     const key = typeof candidate.key === "string" ? candidate.key : "";
     const label = typeof candidate.label === "string" ? candidate.label.trim().slice(0, 160) : "";
     const sourceQuote = typeof candidate.sourceQuote === "string" ? candidate.sourceQuote : "";
-    if (!key || !label || !sourceQuote || !sourceStatement.includes(sourceQuote) || usedKeys.has(key)) return [];
+    if (!FIELD_KEYS.includes(key as (typeof FIELD_KEYS)[number]) || !label || !sourceQuote || !sourceStatement.includes(sourceQuote) || usedKeys.has(key)) return [];
     usedKeys.add(key);
     return [{
       key,

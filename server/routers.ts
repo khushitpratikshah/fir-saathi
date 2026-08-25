@@ -1,10 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, constableProcedure, publicProcedure, router } from "./_core/trpc";
-import { addCitizenClarification, addPreConfirmationContext, addTranscriptCorrection, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, requireCitizenAccess, resumeIntakeDraft, returnComplaint, saveIntakeDraft, verifyComplaint, verifyEvidenceHash } from "./db";
+import { addCitizenClarification, addPreConfirmationContext, addTranscriptCorrection, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, requireCitizenAccess, resumeIntakeDraft, returnComplaint, rotateCitizenAccessCode, saveIntakeDraft, verifyComplaint, verifyEvidenceHash, withdrawComplaint } from "./db";
 import { clearPortableSession, getPortableUser, storePortableSession } from "./supabaseAuth";
 import { SUPPORTED_LANGUAGES } from "../shared/firSaathi";
 import { generateSourceCoverage } from "./sourceCoverage";
+import { groqReviewerTranslation } from "./groqProvider";
 
 const publicIdSchema = z.string().trim().min(4).max(32);
 const citizenAccessCodeSchema = z.string().trim().min(20).max(100);
@@ -97,6 +98,14 @@ export const appRouter = router({
         return detail;
       } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); }
     }),
+    reviewerTranslation: constableProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => {
+      try {
+        const detail = await getComplaintDetail(input.publicId);
+        if (!detail) throw new TRPCError({ code: "NOT_FOUND", message: "This review record was not found." });
+        if (detail.complaint.status === "withdrawn") throw new TRPCError({ code: "BAD_REQUEST", message: "This prototype record was withdrawn by the citizen and has no reviewable source content." });
+        return await groqReviewerTranslation({ sourceStatement: detail.complaint.sourceTranscript, sourceLanguage: detail.complaint.language });
+      } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); }
+    }),
     create: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), consent: z.literal(true), context: citizenContextSchema, resumeCode: z.string().trim().min(12).max(100).optional() })).mutation(async ({ input, ctx }) => { try { enforcePublicRateLimit(ctx, "citizen-create", 8); return await createComplaint(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
     previewSourceCoverage: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(6_000) })).mutation(async ({ input, ctx }) => {
       try { enforcePublicRateLimit(ctx, "source-coverage", 10); return await generateSourceCoverage({ language: input.language, sourceStatement: input.sourceTranscript }); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); }
@@ -105,6 +114,8 @@ export const appRouter = router({
     resumeIntakeDraft: publicProcedure.input(z.object({ resumeCode: z.string().trim().min(12).max(100) })).query(async ({ input, ctx }) => { try { enforcePublicRateLimit(ctx, "intake-draft-resume", 16); return await resumeIntakeDraft(input.resumeCode); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
     draft: constableProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { return await draftComplaint(input.publicId); } catch (error) { return databaseError(error); } }),
     confirm: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-confirm"); await confirmComplaint(input.publicId); return { success: true }; } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    rotateCitizenAccessCode: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-access-rotation"); return await rotateCitizenAccessCode(input.publicId); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    withdraw: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-withdrawal"); return await withdrawComplaint(input.publicId); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
     addClarification: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema, clarification: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-clarification"); return await addCitizenClarification(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
     addTranscriptCorrection: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema, passage: z.string().trim().min(1).max(500), startSeconds: z.number().min(0).max(36_000), endSeconds: z.number().min(0).max(36_000), note: z.string().trim().min(2).max(1_000) }).refine((input) => input.endSeconds >= input.startSeconds, { message: "The selected transcript timestamp is invalid." })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-correction"); return await addTranscriptCorrection(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
     addContext: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema, key: z.enum(["incident_when", "incident_where", "injury_or_safety", "people_or_vehicle", "property_or_loss", "follow_up_contact"]), value: z.string().trim().min(2).max(500) })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-context"); return await addPreConfirmationContext(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),

@@ -23,6 +23,7 @@ export const COMPLAINT_STATUSES = [
   "ready_for_review",
   "returned",
   "verified",
+  "withdrawn",
 ] as const;
 export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 

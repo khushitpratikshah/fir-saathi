@@ -21,7 +21,7 @@ function OfficerQueueContent({ dark }: { dark: boolean }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const allRecords = queue.data ?? [];
-  const open = allRecords.filter((item) => item.status !== "verified");
+  const open = allRecords.filter((item) => item.status !== "verified" && item.status !== "withdrawn");
   const returned = allRecords.filter((item) => item.status === "returned").length;
   const verified = allRecords.filter((item) => item.status === "verified").length;
   const readyForReview = allRecords.filter((item) => item.status === "ready_for_review").length;
@@ -29,7 +29,7 @@ function OfficerQueueContent({ dark }: { dark: boolean }) {
   const visibleRecords = allRecords.filter((item) => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
     const matchesSearch = !normalizedSearch || item.publicId.toLocaleLowerCase().includes(normalizedSearch) || item.sourceTranscript.toLocaleLowerCase().includes(normalizedSearch) || languageLabels[item.language].toLocaleLowerCase().includes(normalizedSearch);
-    const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? item.status !== "verified" : item.status === statusFilter);
+    const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? item.status !== "verified" && item.status !== "withdrawn" : item.status === statusFilter);
     return matchesSearch && matchesStatus;
   });
   const page = dark ? "min-h-[calc(100vh-144px)] bg-[#081626] text-slate-100" : "app-real-surface min-h-[calc(100vh-144px)] text-[#102643]";

@@ -6,6 +6,7 @@ const labels: Record<ComplaintStatus, string> = {
   ready_for_review: "Ready for review",
   returned: "Returned for clarification",
   verified: "Verified prototype record",
+  withdrawn: "Withdrawn prototype record",
 };
 
 const styles: Record<ComplaintStatus, string> = {
@@ -14,6 +15,7 @@ const styles: Record<ComplaintStatus, string> = {
   ready_for_review: "bg-[#fce9df] text-[#9b3a0d]",
   returned: "bg-slate-200 text-slate-700",
   verified: "bg-emerald-100 text-emerald-800",
+  withdrawn: "bg-rose-100 text-rose-800",
 };
 
 export default function ComplaintStatusPill({ status }: { status: ComplaintStatus }) {

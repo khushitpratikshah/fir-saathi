@@ -170,3 +170,9 @@
 - [x] Protect complaint record reads and mutations with unguessable capability tokens and rate limiting.
 - [x] Add CI check/test quality gates before Raspberry Pi deployment and remove stale root migration artifacts.
 - [x] Add regression coverage and validate the security, privacy, CI, production build, and Raspberry Pi deployment remediation.
+- [x] Build a multilingual adversarial evaluation harness for prompt injection, hallucinated source quotes, and BNS eligibility probes; publish reproducible results.
+- [x] Persist per-segment transcription confidence and highlight low-confidence segments during citizen read-back without changing source text.
+- [x] Add a non-authoritative reviewer translation aid with visible back-translation and source-preserving labeling.
+- [x] Add citizen withdrawal/soft deletion, audit logging, and secure private-record access-code rotation.
+- [x] Enable available Supabase password safeguards and document any platform-level limitations.
+- [ ] Validate the expanded safety capabilities, tests, build, data migration, CI, and Raspberry Pi deployment.

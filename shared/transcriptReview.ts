@@ -2,7 +2,12 @@ export type TranscriptSegment = {
   startSeconds: number;
   endSeconds: number;
   text: string;
+  avgLogprob?: number;
 };
+
+export function isLowConfidenceSegment(segment: TranscriptSegment) {
+  return typeof segment.avgLogprob === "number" && segment.avgLogprob <= -0.85;
+}
 
 export function formatTranscriptTime(seconds: number) {
   const safeSeconds = Math.max(0, Math.floor(seconds));

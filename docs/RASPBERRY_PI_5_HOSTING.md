@@ -196,6 +196,10 @@ For a quick prototype check, ensure the destination address is a member of the S
 
 Treat the SMTP password as a secret. Store it only in Supabase's SMTP settings, not in the Raspberry Pi's `/etc/fir-saathi.env`, source repository, browser code, or chat. The existing unconfirmed user can be removed from **Authentication → Users** and recreated after delivery is configured, or you can use Supabase's user-management controls to resend confirmation from the dashboard.
 
+### Configure password safeguards honestly
+
+Before opening registration beyond a tightly controlled prototype audience, review **Authentication → Attack Protection** (or the current project Auth settings) and set the strongest practical password requirements. Supabase documents that **Leaked password protection** checks passwords against the Pwned Passwords service, but this setting is available only on the Pro plan and above.[13] The connected FIR Saathi project is on the Free plan, so this protection cannot be enabled or claimed as active at present. If the project is upgraded, enable the setting in the dashboard and retest sign-up and password-reset flows; there is no repository variable or application-side substitute for this provider control.
+
 ### Recommended free option: Resend
 
 For a low-volume prototype, Resend is the simpler current free option: its Free plan allows up to 100 emails per day.[8] SendGrid's no-cost offering is a time-limited trial rather than a permanent free SMTP tier, so use Resend unless you specifically need SendGrid.[9]
@@ -525,3 +529,5 @@ Replace `procedureNameHere` with the missing procedure name, for example `addCon
 [12] [GitHub Docs, *Configuring the self-hosted runner application as a service*](https://docs.github.com/actions/hosting-your-own-runners/managing-self-hosted-runners/configuring-the-self-hosted-runner-application-as-a-service)
 
 [10] [Resend Docs, *Send emails using Supabase with SMTP*](https://resend.com/docs/send-with-supabase-smtp)
+
+[13] [Supabase Docs, *Password security*](https://supabase.com/docs/guides/auth/password-security)

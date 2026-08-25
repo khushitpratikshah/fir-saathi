@@ -16,6 +16,8 @@ type SupabaseComplaint = {
   status: ComplaintStatus;
   consent_at: string | null;
   citizen_confirmed_at: string | null;
+  withdrawn_at: string | null;
+  withdrawal_reason: string | null;
   source_transcript: string;
   draft_json: StructuredDraft;
   created_at: string;
@@ -51,7 +53,7 @@ type SupabaseAuditEvent = {
   complaint_id: string;
   actor_label: string;
   actor_role: "citizen" | "constable" | "system";
-  event_type: "created" | "transcribed" | "drafted" | "citizen_confirmed" | "field_corrected" | "returned" | "verified" | "evidence_checked" | "context_added" | "clarification_added";
+  event_type: "created" | "transcribed" | "drafted" | "citizen_confirmed" | "field_corrected" | "returned" | "verified" | "evidence_checked" | "context_added" | "clarification_added" | "withdrawn" | "access_code_rotated";
   field_key: string | null;
   previous_value: string | null;
   new_value: string | null;
@@ -94,10 +96,11 @@ type SupabaseIntakeDraft = {
   expires_at: string;
 };
 
-const complaintColumns = "id,public_id,citizen_access_hash,language,status,consent_at,citizen_confirmed_at,source_transcript,draft_json,created_at,updated_at";
+const complaintColumns = "id,public_id,citizen_access_hash,language,status,consent_at,citizen_confirmed_at,withdrawn_at,withdrawal_reason,source_transcript,draft_json,created_at,updated_at";
 const intakeDraftColumns = "id,resume_code_hash,language,source_transcript,citizen_context,current_step,consent_at,created_at,updated_at,expires_at";
 
-function mapComplaint(row: SupabaseComplaint) {
+function mapComplaint(row: SupabaseComplaint, redactWithdrawn = false) {
+  const withdrawn = redactWithdrawn && row.status === "withdrawn";
   return {
     id: row.id,
     publicId: row.public_id,
@@ -105,8 +108,9 @@ function mapComplaint(row: SupabaseComplaint) {
     status: row.status,
     consentAt: row.consent_at ? new Date(row.consent_at) : null,
     citizenConfirmedAt: row.citizen_confirmed_at ? new Date(row.citizen_confirmed_at) : null,
-    sourceTranscript: row.source_transcript,
-    draftJson: row.draft_json,
+    withdrawnAt: row.withdrawn_at ? new Date(row.withdrawn_at) : null,
+    sourceTranscript: withdrawn ? "This prototype record was withdrawn by the citizen. Its complaint content is no longer available in the normal workspace." : row.source_transcript,
+    draftJson: withdrawn ? EMPTY_DRAFT : row.draft_json,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -164,6 +168,7 @@ async function requireComplaint(publicId: string) {
 
 export async function requireCitizenAccess(publicId: string, citizenAccessCode: string) {
   const complaint = await requireComplaint(publicId);
+  if (complaint.status === "withdrawn") throw new Error("This prototype record has been withdrawn and its private access is no longer available.");
   if (!matchesCitizenAccessCode(complaint.citizen_access_hash, citizenAccessCode)) {
     throw new Error("This private record access code is invalid or unavailable.");
   }
@@ -214,7 +219,7 @@ async function saveCitizenContext(complaintId: string, context: CitizenContext, 
 export async function listComplaints() {
   await ensureBnsReferences();
   const rows = await supabaseRequest<SupabaseComplaint[]>(`fir_saathi_complaints?select=${complaintColumns}&order=updated_at.desc`);
-  return rows.map(mapComplaint);
+  return rows.map((row) => mapComplaint(row, true));
 }
 
 export async function getComplaintDetail(publicId: string) {
@@ -226,7 +231,16 @@ export async function getComplaintDetail(publicId: string) {
     supabaseRequest<SupabaseEvidence[]>(`fir_saathi_audio_evidence?select=*&complaint_id=eq.${complaint.id}&order=created_at.desc`),
     supabaseRequest<SupabaseAuditEvent[]>(`fir_saathi_audit_events?select=*&complaint_id=eq.${complaint.id}&order=created_at.desc`),
   ]);
+  if (complaint.status === "withdrawn") {
+    const tombstoneEvents = audit.filter((event) => event.event_type === "created" || event.event_type === "withdrawn" || event.event_type === "access_code_rotated");
+    return { complaint: mapComplaint(complaint, true), fields: [], evidence: [], audit: tombstoneEvents.map(mapAuditEvent) };
+  }
   return { complaint: mapComplaint(complaint), fields: fields.map(mapField), evidence: evidence.map(mapEvidence), audit: audit.map(mapAuditEvent) };
+}
+
+function requireActiveComplaint(complaint: SupabaseComplaint) {
+  if (complaint.status === "withdrawn") throw new Error("This prototype record was withdrawn by the citizen and cannot be changed or reviewed.");
+  return complaint;
 }
 
 export async function saveIntakeDraft(input: { language: SupportedLanguage; sourceTranscript: string; context: CitizenContext; currentStep: number; consent: true; resumeCode?: string }) {
@@ -287,7 +301,7 @@ export async function createComplaint(input: { language: SupportedLanguage; sour
 }
 
 export async function draftComplaint(publicId: string) {
-  const complaint = await requireComplaint(publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(publicId));
   if (complaint.status === "verified") throw new Error("A verified prototype record cannot be redrafted.");
   const draft = await generateSafeDraft({ language: complaint.language, sourceStatement: complaint.source_transcript });
   await supabaseRequest(`fir_saathi_complaints?public_id=eq.${encodeURIComponent(publicId)}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ draft_json: draft }) });
@@ -340,7 +354,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
 }
 
 export async function addTranscriptCorrection(input: { publicId: string; passage: string; startSeconds: number; endSeconds: number; note: string }) {
-  const complaint = await requireComplaint(input.publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(input.publicId));
   if (complaint.status !== "needs_citizen_confirmation" && complaint.status !== "returned") throw new Error("A transcript correction note can only be added before final verification.");
   const value = buildTranscriptCorrectionValue(input);
   const fieldKey = `transcript_correction_${Date.now()}`;
@@ -350,7 +364,7 @@ export async function addTranscriptCorrection(input: { publicId: string; passage
 }
 
 export async function verifyEvidenceHash(input: { publicId: string; evidenceId: string; actorLabel: string }) {
-  const complaint = await requireComplaint(input.publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(input.publicId));
   const rows = await supabaseRequest<SupabaseEvidence[]>(`fir_saathi_audio_evidence?select=*&id=eq.${input.evidenceId}&complaint_id=eq.${complaint.id}&limit=1`);
   const evidence = rows[0];
   if (!evidence?.sha256) throw new Error("Evidence metadata is unavailable for this record.");
@@ -368,7 +382,7 @@ export async function verifyEvidenceHash(input: { publicId: string; evidenceId: 
 }
 
 export async function confirmComplaint(publicId: string) {
-  const complaint = await requireComplaint(publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(publicId));
   if (complaint.status === "verified") throw new Error("A verified prototype record cannot be confirmed again.");
   if (complaint.status !== "needs_citizen_confirmation" && complaint.status !== "returned") throw new Error("This record is not waiting for citizen confirmation.");
   await Promise.all([
@@ -379,7 +393,7 @@ export async function confirmComplaint(publicId: string) {
 }
 
 export async function addCitizenClarification(input: { publicId: string; clarification: string }) {
-  const complaint = await requireComplaint(input.publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(input.publicId));
   if (complaint.status !== "returned") throw new Error("A clarification can only be added after a constable return request.");
   const value = input.clarification.trim();
   if (value.length < 4) throw new Error("Please add a short clarification before sending it back to review.");
@@ -390,7 +404,7 @@ export async function addCitizenClarification(input: { publicId: string; clarifi
 }
 
 export async function addPreConfirmationContext(input: { publicId: string; key: keyof CitizenContext; value: string }) {
-  const complaint = await requireComplaint(input.publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(input.publicId));
   if (complaint.status !== "needs_citizen_confirmation") throw new Error("This detail can only be added while your draft is awaiting confirmation.");
   const value = input.value.trim();
   if (value.length < 2) throw new Error("Please add a short detail or skip this optional question.");
@@ -408,7 +422,7 @@ export async function addPreConfirmationContext(input: { publicId: string; key: 
 }
 
 export async function correctComplaintField(input: { publicId: string; fieldKey: string; label: string; value: string; actorLabel: string; reason: string }) {
-  const complaint = await requireComplaint(input.publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(input.publicId));
   const existingRows = await supabaseRequest<SupabaseField[]>(`fir_saathi_complaint_fields?select=*&complaint_id=eq.${complaint.id}&field_key=eq.${encodeURIComponent(input.fieldKey)}&limit=1`);
   const existing = existingRows[0];
   if (existing) {
@@ -421,18 +435,35 @@ export async function correctComplaintField(input: { publicId: string; fieldKey:
 }
 
 export async function returnComplaint(input: { publicId: string; actorLabel: string; reason: string }) {
-  const complaint = await requireComplaint(input.publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(input.publicId));
   await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "returned" }) });
   await insertAuditEvent({ complaint_id: complaint.id, actor_label: input.actorLabel, actor_role: "constable", event_type: "returned", field_key: null, previous_value: null, new_value: "Returned for citizen clarification", reason: input.reason });
 }
 
 export async function verifyComplaint(input: { publicId: string; actorLabel: string }) {
-  const complaint = await requireComplaint(input.publicId);
+  const complaint = requireActiveComplaint(await requireComplaint(input.publicId));
   await Promise.all([
     supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "verified" }) }),
     supabaseRequest(`fir_saathi_complaint_fields?complaint_id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ verification_state: "officer_verified" }) }),
   ]);
   await insertAuditEvent({ complaint_id: complaint.id, actor_label: input.actorLabel, actor_role: "constable", event_type: "verified", field_key: null, previous_value: null, new_value: "Prototype record verified; no FIR registered", reason: null });
+}
+
+export async function rotateCitizenAccessCode(publicId: string) {
+  const complaint = requireActiveComplaint(await requireComplaint(publicId));
+  const citizenAccessCode = createCitizenAccessCode();
+  await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ citizen_access_hash: hashCitizenAccessCode(citizenAccessCode), updated_at: new Date().toISOString() }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "access_code_rotated", field_key: null, previous_value: null, new_value: "Private record access code rotated; the previous code was revoked", reason: null });
+  return { citizenAccessCode };
+}
+
+export async function withdrawComplaint(publicId: string) {
+  const complaint = await requireComplaint(publicId);
+  if (complaint.status === "withdrawn") throw new Error("This prototype record has already been withdrawn.");
+  const withdrawnAt = new Date().toISOString();
+  await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ status: "withdrawn", withdrawn_at: withdrawnAt, withdrawal_reason: "Citizen withdrew active prototype record", citizen_access_hash: null, updated_at: withdrawnAt }) });
+  await insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "withdrawn", field_key: null, previous_value: complaint.status, new_value: "Citizen withdrew the active prototype record; private access was revoked and content was removed from normal workspaces", reason: null });
+  return { withdrawnAt: new Date(withdrawnAt) };
 }
 
 export async function listDemoBnsReferences() {
