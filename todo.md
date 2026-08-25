@@ -176,3 +176,4 @@
 - [x] Add citizen withdrawal/soft deletion, audit logging, and secure private-record access-code rotation.
 - [x] Enable available Supabase password safeguards and document any platform-level limitations.
 - [x] Validate the expanded safety capabilities, tests, build, data migration, CI, and Raspberry Pi deployment.
+- [x] Change the private GitHub repository visibility to public and verify the setting.
