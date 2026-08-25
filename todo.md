@@ -180,7 +180,7 @@
 - [x] Reframe adversarial-evaluation claims as deterministic guardrail invariants and expand the hostile-input coverage.
 - [x] Make the test suite clone-friendly by supplying test-only provider configuration and skipping live-secret checks when credentials are absent.
 - [x] Clarify and implement the prototype withdrawal retention boundary across storage, UI, and judge-facing documentation.
-- [ ] Validate, publish, deploy, and checkpoint the audit-report remediation.
+- [x] Validate, publish, deploy, and checkpoint the audit-report remediation.
 - [x] Add a controlled live-Groq adversarial evaluation tier with explicit failure reporting and no fabricated score.
 - [x] Add confidence-threshold calibration inputs and precision/recall reporting that require real reference transcripts.
 - [x] Mark language-specific transcription risk only where an identified evaluation corpus supports the stated WER threshold.
