@@ -26,6 +26,9 @@ jobs:
           . "$NVM_DIR/nvm.sh"
           nvm use 22 --silent
           corepack enable
+          set -a
+          . /etc/fir-saathi.env
+          set +a
           pnpm install --frozen-lockfile
           pnpm check
           pnpm test
