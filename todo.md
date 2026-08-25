@@ -175,4 +175,4 @@
 - [x] Add a non-authoritative reviewer translation aid with visible back-translation and source-preserving labeling.
 - [x] Add citizen withdrawal/soft deletion, audit logging, and secure private-record access-code rotation.
 - [x] Enable available Supabase password safeguards and document any platform-level limitations.
-- [ ] Validate the expanded safety capabilities, tests, build, data migration, CI, and Raspberry Pi deployment.
+- [x] Validate the expanded safety capabilities, tests, build, data migration, CI, and Raspberry Pi deployment.
