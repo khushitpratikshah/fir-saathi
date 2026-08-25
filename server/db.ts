@@ -1,15 +1,17 @@
 import { createHash, randomBytes } from "node:crypto";
 import { nanoid } from "nanoid";
+import { createCitizenAccessCode, hashCitizenAccessCode, matchesCitizenAccessCode } from "./citizenAccess";
 import { BNS_REVIEW_REFERENCES, EMPTY_DRAFT, INTAKE_DRAFT_EXPIRY_HOURS, type BnsSuggestion, type CitizenContext, type ComplaintStatus, type DraftField, type ResumableIntakeDraft, type StructuredDraft, type SupportedLanguage } from "../shared/firSaathi";
 import { buildTranscriptCorrectionValue, type TranscriptSegment } from "../shared/transcriptReview";
 import { generateSafeDraft } from "./drafting";
 import { groqTranscribe } from "./groqProvider";
-import { portableEvidencePut, portableEvidenceSignedUrl } from "./portableStorage";
+import { portableEvidenceSignedUrl } from "./portableStorage";
 import { supabaseRequest } from "./supabase";
 
 type SupabaseComplaint = {
   id: string;
   public_id: string;
+  citizen_access_hash: string | null;
   language: SupportedLanguage;
   status: ComplaintStatus;
   consent_at: string | null;
@@ -92,7 +94,7 @@ type SupabaseIntakeDraft = {
   expires_at: string;
 };
 
-const complaintColumns = "id,public_id,language,status,consent_at,citizen_confirmed_at,source_transcript,draft_json,created_at,updated_at";
+const complaintColumns = "id,public_id,citizen_access_hash,language,status,consent_at,citizen_confirmed_at,source_transcript,draft_json,created_at,updated_at";
 const intakeDraftColumns = "id,resume_code_hash,language,source_transcript,citizen_context,current_step,consent_at,created_at,updated_at,expires_at";
 
 function mapComplaint(row: SupabaseComplaint) {
@@ -157,6 +159,14 @@ async function findActiveIntakeDraftByCode(resumeCode: string) {
 async function requireComplaint(publicId: string) {
   const complaint = await findComplaintRow(publicId);
   if (!complaint) throw new Error("Complaint not found.");
+  return complaint;
+}
+
+export async function requireCitizenAccess(publicId: string, citizenAccessCode: string) {
+  const complaint = await requireComplaint(publicId);
+  if (!matchesCitizenAccessCode(complaint.citizen_access_hash, citizenAccessCode)) {
+    throw new Error("This private record access code is invalid or unavailable.");
+  }
   return complaint;
 }
 
@@ -261,10 +271,11 @@ async function consumeIntakeDraft(resumeCode?: string) {
 
 export async function createComplaint(input: { language: SupportedLanguage; sourceTranscript: string; consent: boolean; context: CitizenContext; resumeCode?: string }) {
   const publicId = `FS-${nanoid(7).toUpperCase()}`;
+  const citizenAccessCode = createCitizenAccessCode();
   const created = await supabaseRequest<SupabaseComplaint[]>("fir_saathi_complaints", {
     method: "POST",
     prefer: "return=representation",
-    body: JSON.stringify({ public_id: publicId, language: input.language, status: "needs_citizen_confirmation", consent_at: input.consent ? new Date().toISOString() : null, source_transcript: input.sourceTranscript, draft_json: EMPTY_DRAFT }),
+    body: JSON.stringify({ public_id: publicId, citizen_access_hash: hashCitizenAccessCode(citizenAccessCode), language: input.language, status: "needs_citizen_confirmation", consent_at: input.consent ? new Date().toISOString() : null, source_transcript: input.sourceTranscript, draft_json: EMPTY_DRAFT }),
   });
   const complaint = created[0];
   if (!complaint) throw new Error("Unable to create the draft record.");
@@ -272,7 +283,7 @@ export async function createComplaint(input: { language: SupportedLanguage; sour
   await draftComplaint(publicId);
   await saveCitizenContext(complaint.id, input.context);
   await consumeIntakeDraft(input.resumeCode);
-  return { publicId };
+  return { publicId, citizenAccessCode };
 }
 
 export async function draftComplaint(publicId: string) {
@@ -294,31 +305,30 @@ export async function draftComplaint(publicId: string) {
 
 function hashBytes(bytes: Buffer) { return createHash("sha256").update(bytes).digest("hex"); }
 
-export async function createVoiceComplaint(input: { language: SupportedLanguage; mimeType: string; rawAudioBase64: string; encryptedAudioBase64: string; ivBase64: string; ciphertextSha256: string; context: CitizenContext }) {
+export async function createVoiceComplaint(input: { language: SupportedLanguage; mimeType: string; rawAudioBase64: string; audioSha256: string; context: CitizenContext }) {
   const rawAudio = Buffer.from(input.rawAudioBase64, "base64");
-  const encryptedAudio = Buffer.from(input.encryptedAudioBase64, "base64");
-  if (!rawAudio.length || !encryptedAudio.length) throw new Error("The recorded audio could not be read.");
+  if (!rawAudio.length) throw new Error("The recorded audio could not be read.");
   if (rawAudio.length > 12 * 1024 * 1024) throw new Error("For this prototype, audio recordings must be 12 MB or smaller.");
-  if (hashBytes(encryptedAudio) !== input.ciphertextSha256) throw new Error("The encrypted audio fingerprint did not match the uploaded record.");
+  if (hashBytes(rawAudio) !== input.audioSha256) throw new Error("The audio fingerprint did not match the uploaded recording.");
   const transcription = await groqTranscribe({ audio: rawAudio, mimeType: input.mimeType, language: input.language, prompt: `Citizen complaint statement in ${input.language}. Preserve words, code-switching, names, places, dates, digits, vehicle details, and spelling as heard. Do not translate, summarise, formalise, correct, or add facts.` });
   const sourceTranscript = transcription.text.trim();
   if (!sourceTranscript) throw new Error("The recording did not produce a usable source transcript. Please try again or use the text option.");
 
   const publicId = `FS-${nanoid(7).toUpperCase()}`;
+  const citizenAccessCode = createCitizenAccessCode();
   const created = await supabaseRequest<SupabaseComplaint[]>("fir_saathi_complaints", {
     method: "POST",
     prefer: "return=representation",
-    body: JSON.stringify({ public_id: publicId, language: input.language, status: "needs_citizen_confirmation", consent_at: new Date().toISOString(), source_transcript: sourceTranscript, draft_json: EMPTY_DRAFT }),
+    body: JSON.stringify({ public_id: publicId, citizen_access_hash: hashCitizenAccessCode(citizenAccessCode), language: input.language, status: "needs_citizen_confirmation", consent_at: new Date().toISOString(), source_transcript: sourceTranscript, draft_json: EMPTY_DRAFT }),
   });
   const complaint = created[0];
   if (!complaint) throw new Error("Unable to create the voice draft record.");
   try {
-    const evidence = await portableEvidencePut(publicId, encryptedAudio);
-    await supabaseRequest("fir_saathi_audio_evidence", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, storage_key: evidence.key, mime_type: input.mimeType, byte_size: encryptedAudio.length, sha256: input.ciphertextSha256, encryption_metadata: { algorithm: "AES-GCM", iv: input.ivBase64, encrypted: true, transcriptSegments: transcription.segments }, tamper_status: "match" }) });
+    await supabaseRequest("fir_saathi_audio_evidence", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ complaint_id: complaint.id, storage_key: null, mime_type: input.mimeType, byte_size: rawAudio.length, sha256: input.audioSha256, encryption_metadata: { algorithm: "SHA-256", encrypted: false, transcriptSegments: transcription.segments }, tamper_status: "unavailable" }) });
     await Promise.all([
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Citizen", actor_role: "citizen", event_type: "created", field_key: null, previous_value: null, new_value: "Citizen-created voice draft", reason: null }),
       insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype transcription service", actor_role: "system", event_type: "transcribed", field_key: null, previous_value: null, new_value: `Source transcript captured (${sourceTranscript.length} characters); ${transcription.quality.assessment === "review" ? "automated quality indicators request careful citizen read-back" : "automated quality indicators did not request extra read-back"}; raw audio not persisted`, reason: null }),
-      insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype evidence service", actor_role: "system", event_type: "evidence_checked", field_key: null, previous_value: null, new_value: "Encrypted ciphertext hash matched at capture", reason: null }),
+      insertAuditEvent({ complaint_id: complaint.id, actor_label: "Prototype evidence service", actor_role: "system", event_type: "evidence_checked", field_key: null, previous_value: null, new_value: "Raw-audio SHA-256 matched at capture; raw audio was not retained by this prototype", reason: null }),
     ]);
     await draftComplaint(publicId);
     await saveCitizenContext(complaint.id, input.context);
@@ -326,7 +336,7 @@ export async function createVoiceComplaint(input: { language: SupportedLanguage;
     await supabaseRequest(`fir_saathi_complaints?id=eq.${complaint.id}`, { method: "DELETE", prefer: "return=minimal" });
     throw error;
   }
-  return { publicId, transcript: sourceTranscript, detectedLanguage: transcription.language, quality: transcription.quality, transcriptSegments: transcription.segments };
+  return { publicId, citizenAccessCode, transcript: sourceTranscript, detectedLanguage: transcription.language, quality: transcription.quality, transcriptSegments: transcription.segments };
 }
 
 export async function addTranscriptCorrection(input: { publicId: string; passage: string; startSeconds: number; endSeconds: number; note: string }) {
@@ -343,7 +353,11 @@ export async function verifyEvidenceHash(input: { publicId: string; evidenceId: 
   const complaint = await requireComplaint(input.publicId);
   const rows = await supabaseRequest<SupabaseEvidence[]>(`fir_saathi_audio_evidence?select=*&id=eq.${input.evidenceId}&complaint_id=eq.${complaint.id}&limit=1`);
   const evidence = rows[0];
-  if (!evidence?.storage_key || !evidence.sha256) throw new Error("Evidence storage metadata is unavailable for this record.");
+  if (!evidence?.sha256) throw new Error("Evidence metadata is unavailable for this record.");
+  if (!evidence.storage_key) {
+    await insertAuditEvent({ complaint_id: complaint.id, actor_label: input.actorLabel, actor_role: "constable", event_type: "evidence_checked", field_key: null, previous_value: null, new_value: "Raw audio was not retained by this prototype; post-transcription fingerprint verification is unavailable", reason: null });
+    return { tamperStatus: "unavailable" as const };
+  }
   const signedUrl = await portableEvidenceSignedUrl(evidence.storage_key);
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error("Stored encrypted evidence could not be retrieved for verification.");

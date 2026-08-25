@@ -1,12 +1,13 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, constableProcedure, publicProcedure, router } from "./_core/trpc";
-import { addCitizenClarification, addPreConfirmationContext, addTranscriptCorrection, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, resumeIntakeDraft, returnComplaint, saveIntakeDraft, verifyComplaint, verifyEvidenceHash } from "./db";
+import { addCitizenClarification, addPreConfirmationContext, addTranscriptCorrection, assignProfileRole, confirmComplaint, correctComplaintField, createComplaint, createVoiceComplaint, draftComplaint, getComplaintDetail, listComplaints, listDemoBnsReferences, listRoleProfiles, requireCitizenAccess, resumeIntakeDraft, returnComplaint, saveIntakeDraft, verifyComplaint, verifyEvidenceHash } from "./db";
 import { clearPortableSession, getPortableUser, storePortableSession } from "./supabaseAuth";
 import { SUPPORTED_LANGUAGES } from "../shared/firSaathi";
 import { generateSourceCoverage } from "./sourceCoverage";
 
 const publicIdSchema = z.string().trim().min(4).max(32);
+const citizenAccessCodeSchema = z.string().trim().min(20).max(100);
 const citizenContextSchema = z.object({
   incident_when: z.string().trim().max(240).optional(),
   incident_where: z.string().trim().max(320).optional(),
@@ -29,6 +30,31 @@ function databaseError(error: unknown): never {
 
 function constableLabel(user: { name: string | null; email: string | null }) {
   return user.name?.trim() || user.email?.trim() || "Constable";
+}
+
+const publicRequestBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function enforcePublicRateLimit(ctx: { req: { headers: Record<string, string | string[] | undefined>; socket: { remoteAddress?: string | undefined } } }, scope: string, limit: number) {
+  const forwarded = ctx.req.headers["x-forwarded-for"];
+  const address = (typeof forwarded === "string" ? forwarded.split(",")[0] : Array.isArray(forwarded) ? forwarded[0] : ctx.req.socket.remoteAddress) ?? "unknown";
+  const now = Date.now();
+  const key = `${scope}:${address.trim()}`;
+  const bucket = publicRequestBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    publicRequestBuckets.set(key, { count: 1, resetAt: now + 10 * 60_000 });
+    return;
+  }
+  bucket.count += 1;
+  if (bucket.count > limit) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many requests from this connection. Please wait a few minutes and try again." });
+}
+
+async function guardCitizenRecord(ctx: { req: { headers: Record<string, string | string[] | undefined>; socket: { remoteAddress?: string | undefined } } }, input: { publicId: string; citizenAccessCode: string }, scope: string) {
+  enforcePublicRateLimit(ctx, scope, 24);
+  try {
+    await requireCitizenAccess(input.publicId, input.citizenAccessCode);
+  } catch {
+    throw new TRPCError({ code: "FORBIDDEN", message: "This private record access code is invalid or unavailable." });
+  }
 }
 
 export const appRouter = router({
@@ -56,8 +82,9 @@ export const appRouter = router({
   }),
   complaints: router({
     list: constableProcedure.query(async () => { try { return await listComplaints(); } catch (error) { return databaseError(error); } }),
-    get: publicProcedure.input(z.object({ publicId: publicIdSchema })).query(async ({ input }) => {
+    get: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema })).query(async ({ input, ctx }) => {
       try {
+        await guardCitizenRecord(ctx, input, "citizen-record-read");
         const detail = await getComplaintDetail(input.publicId);
         if (!detail) throw new TRPCError({ code: "NOT_FOUND", message: "This prototype record was not found." });
         return detail;
@@ -70,24 +97,24 @@ export const appRouter = router({
         return detail;
       } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); }
     }),
-    create: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), consent: z.literal(true), context: citizenContextSchema, resumeCode: z.string().trim().min(12).max(100).optional() })).mutation(async ({ input }) => { try { return await createComplaint(input); } catch (error) { return databaseError(error); } }),
-    previewSourceCoverage: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(6_000) })).mutation(async ({ input }) => {
-      try { return await generateSourceCoverage({ language: input.language, sourceStatement: input.sourceTranscript }); } catch (error) { return databaseError(error); }
+    create: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), consent: z.literal(true), context: citizenContextSchema, resumeCode: z.string().trim().min(12).max(100).optional() })).mutation(async ({ input, ctx }) => { try { enforcePublicRateLimit(ctx, "citizen-create", 8); return await createComplaint(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    previewSourceCoverage: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(6_000) })).mutation(async ({ input, ctx }) => {
+      try { enforcePublicRateLimit(ctx, "source-coverage", 10); return await generateSourceCoverage({ language: input.language, sourceStatement: input.sourceTranscript }); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); }
     }),
-    saveIntakeDraft: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), context: citizenContextSchema, currentStep: z.number().int().min(1).max(8), consent: z.literal(true), resumeCode: z.string().trim().min(12).max(100).optional() })).mutation(async ({ input }) => { try { return await saveIntakeDraft(input); } catch (error) { return databaseError(error); } }),
-    resumeIntakeDraft: publicProcedure.input(z.object({ resumeCode: z.string().trim().min(12).max(100) })).query(async ({ input }) => { try { return await resumeIntakeDraft(input.resumeCode); } catch (error) { return databaseError(error); } }),
-    draft: publicProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { return await draftComplaint(input.publicId); } catch (error) { return databaseError(error); } }),
-    confirm: publicProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { await confirmComplaint(input.publicId); return { success: true }; } catch (error) { return databaseError(error); } }),
-    addClarification: publicProcedure.input(z.object({ publicId: publicIdSchema, clarification: z.string().trim().min(4).max(2_000) })).mutation(async ({ input }) => { try { return await addCitizenClarification(input); } catch (error) { return databaseError(error); } }),
-    addTranscriptCorrection: publicProcedure.input(z.object({ publicId: publicIdSchema, passage: z.string().trim().min(1).max(500), startSeconds: z.number().min(0).max(36_000), endSeconds: z.number().min(0).max(36_000), note: z.string().trim().min(2).max(1_000) }).refine((input) => input.endSeconds >= input.startSeconds, { message: "The selected transcript timestamp is invalid." })).mutation(async ({ input }) => { try { return await addTranscriptCorrection(input); } catch (error) { return databaseError(error); } }),
-    addContext: publicProcedure.input(z.object({ publicId: publicIdSchema, key: z.enum(["incident_when", "incident_where", "injury_or_safety", "people_or_vehicle", "property_or_loss", "follow_up_contact"]), value: z.string().trim().min(2).max(500) })).mutation(async ({ input }) => { try { return await addPreConfirmationContext(input); } catch (error) { return databaseError(error); } }),
+    saveIntakeDraft: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), sourceTranscript: z.string().trim().min(8).max(12_000), context: citizenContextSchema, currentStep: z.number().int().min(1).max(8), consent: z.literal(true), resumeCode: z.string().trim().min(12).max(100).optional() })).mutation(async ({ input, ctx }) => { try { enforcePublicRateLimit(ctx, "intake-draft-save", 12); return await saveIntakeDraft(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    resumeIntakeDraft: publicProcedure.input(z.object({ resumeCode: z.string().trim().min(12).max(100) })).query(async ({ input, ctx }) => { try { enforcePublicRateLimit(ctx, "intake-draft-resume", 16); return await resumeIntakeDraft(input.resumeCode); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    draft: constableProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input }) => { try { return await draftComplaint(input.publicId); } catch (error) { return databaseError(error); } }),
+    confirm: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-confirm"); await confirmComplaint(input.publicId); return { success: true }; } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    addClarification: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema, clarification: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-clarification"); return await addCitizenClarification(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    addTranscriptCorrection: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema, passage: z.string().trim().min(1).max(500), startSeconds: z.number().min(0).max(36_000), endSeconds: z.number().min(0).max(36_000), note: z.string().trim().min(2).max(1_000) }).refine((input) => input.endSeconds >= input.startSeconds, { message: "The selected transcript timestamp is invalid." })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-correction"); return await addTranscriptCorrection(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
+    addContext: publicProcedure.input(z.object({ publicId: publicIdSchema, citizenAccessCode: citizenAccessCodeSchema, key: z.enum(["incident_when", "incident_where", "injury_or_safety", "people_or_vehicle", "property_or_loss", "follow_up_contact"]), value: z.string().trim().min(2).max(500) })).mutation(async ({ input, ctx }) => { try { await guardCitizenRecord(ctx, input, "citizen-context"); return await addPreConfirmationContext(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
     correctField: constableProcedure.input(z.object({ publicId: publicIdSchema, fieldKey: z.string().trim().min(1).max(80), label: z.string().trim().min(1).max(160), value: z.string().trim().min(1).max(5_000), reason: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await correctComplaintField({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
     returnForCorrection: constableProcedure.input(z.object({ publicId: publicIdSchema, reason: z.string().trim().min(4).max(2_000) })).mutation(async ({ input, ctx }) => { try { await returnComplaint({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
     verify: constableProcedure.input(z.object({ publicId: publicIdSchema })).mutation(async ({ input, ctx }) => { try { await verifyComplaint({ ...input, actorLabel: constableLabel(ctx.user) }); return { success: true }; } catch (error) { return databaseError(error); } }),
   }),
   bns: router({ list: publicProcedure.query(async () => { try { return await listDemoBnsReferences(); } catch (error) { return databaseError(error); } }) }),
   evidence: router({
-    captureAndTranscribe: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), mimeType: z.enum(["audio/webm", "audio/ogg", "audio/wav", "audio/mpeg", "audio/mp4"]), rawAudioBase64: z.string().min(10).max(17_000_000), encryptedAudioBase64: z.string().min(10).max(17_100_000), ivBase64: z.string().min(8).max(100), ciphertextSha256: z.string().regex(/^[a-f0-9]{64}$/), context: citizenContextSchema })).mutation(async ({ input }) => { try { return await createVoiceComplaint(input); } catch (error) { return databaseError(error); } }),
+    captureAndTranscribe: publicProcedure.input(z.object({ language: z.enum(SUPPORTED_LANGUAGES), mimeType: z.enum(["audio/webm", "audio/ogg", "audio/wav", "audio/mpeg", "audio/mp4"]), rawAudioBase64: z.string().min(10).max(17_000_000), audioSha256: z.string().regex(/^[a-f0-9]{64}$/), context: citizenContextSchema })).mutation(async ({ input, ctx }) => { try { enforcePublicRateLimit(ctx, "voice-transcription", 6); return await createVoiceComplaint(input); } catch (error) { if (error instanceof TRPCError) throw error; return databaseError(error); } }),
     verifyHash: constableProcedure.input(z.object({ publicId: publicIdSchema, evidenceId: z.string().uuid() })).mutation(async ({ input, ctx }) => { try { return await verifyEvidenceHash({ ...input, actorLabel: constableLabel(ctx.user) }); } catch (error) { return databaseError(error); } }),
   }),
 });

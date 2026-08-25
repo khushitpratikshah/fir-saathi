@@ -13,11 +13,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality:
+    name: Type check and test release
+    runs-on: [self-hosted, Linux, ARM64]
+    if: github.repository == 'khushitpratikshah/fir-saathi' && github.ref == 'refs/heads/main'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies and validate release
+        run: |
+          export NVM_DIR="/srv/fir-saathi/.nvm"
+          . "$NVM_DIR/nvm.sh"
+          nvm use 22 --silent
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm check
+          pnpm test
+
   deploy:
     name: Build and restart production service
     # The repository-scoped Pi runner has GitHub's built-in Linux and ARM64 labels.
     runs-on: [self-hosted, Linux, ARM64]
     if: github.repository == 'khushitpratikshah/fir-saathi' && github.ref == 'refs/heads/main'
+    needs: quality
     timeout-minutes: 20
     steps:
       - name: Confirm trusted deployment revision

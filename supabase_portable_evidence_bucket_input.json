@@ -1,5 +1,0 @@
-{
-  "project_id": "kiyalvqkikosfdlpbxaw",
-  "name": "create_fir_saathi_private_evidence_bucket",
-  "query": "insert into storage.buckets (id, name, public) values ('fir-saathi-evidence', 'fir-saathi-evidence', false) on conflict (id) do nothing;"
-}

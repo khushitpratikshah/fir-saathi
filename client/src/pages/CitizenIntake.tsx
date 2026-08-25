@@ -10,6 +10,7 @@ import { userFacingGroqError } from "@/lib/groqTranscription";
 import { getSourceStatementReadiness } from "@/lib/sourceStatementReadiness";
 import { getAudioLevelFeedback, type AudioLevelFeedback } from "@/lib/audioLevel";
 import { retainLocalAudioReview } from "@/lib/localAudioReview";
+import { rememberCitizenAccess } from "@/lib/citizenRecordAccess";
 
 const languages = [
   { code: "en", label: "English", native: "English" },
@@ -96,7 +97,8 @@ export default function CitizenIntake() {
     { enabled: storedResumeCode.length >= 12, retry: false },
   );
   const createComplaint = trpc.complaints.create.useMutation({
-    onSuccess: ({ publicId }) => {
+    onSuccess: ({ publicId, citizenAccessCode }) => {
+      rememberCitizenAccess(publicId, citizenAccessCode);
       window.sessionStorage.removeItem("fir-saathi-resume-code");
       navigate(`/confirm/${publicId}`);
     },
@@ -301,12 +303,9 @@ export default function CitizenIntake() {
     }
     try {
       setVoiceError(null);
-      setVoiceState("encrypting");
+      setVoiceState("preparing");
       const rawBytes = new Uint8Array(await audioBlob.arrayBuffer());
-      const key = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt"]);
-      const iv = window.crypto.getRandomValues(new Uint8Array(12));
-      const encryptedBytes = new Uint8Array(await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, rawBytes));
-      const digest = new Uint8Array(await window.crypto.subtle.digest("SHA-256", encryptedBytes));
+      const digest = new Uint8Array(await window.crypto.subtle.digest("SHA-256", rawBytes));
       const attemptId = crypto.randomUUID();
       activeVoiceAttemptRef.current = attemptId;
       setVoiceState("preparing");
@@ -326,13 +325,12 @@ export default function CitizenIntake() {
         language,
         mimeType,
         rawAudioBase64: toBase64(rawBytes),
-        encryptedAudioBase64: toBase64(encryptedBytes),
-        ivBase64: toBase64(iv),
-        ciphertextSha256: Array.from(digest).map((byte) => byte.toString(16).padStart(2, "0")).join(""),
+        audioSha256: Array.from(digest).map((byte) => byte.toString(16).padStart(2, "0")).join(""),
         context,
       }, {
-        onSuccess: ({ publicId }) => {
+        onSuccess: ({ publicId, citizenAccessCode }) => {
           if (activeVoiceAttemptRef.current !== attemptId) return;
+          rememberCitizenAccess(publicId, citizenAccessCode);
           finishVoiceAttempt();
           setVoiceState("idle");
           if (audioPreviewUrl) retainLocalAudioReview(publicId, audioPreviewUrl);
@@ -350,8 +348,8 @@ export default function CitizenIntake() {
     } catch (error) {
       finishVoiceAttempt();
       setVoiceState("failed");
-      setVoiceError(error instanceof Error ? error.message : "The recording could not be encrypted locally.");
-      toast.error("The recording could not be encrypted locally. Please retry or type the statement instead.");
+      setVoiceError(error instanceof Error ? error.message : "The recording could not be prepared for transcription.");
+      toast.error("The recording could not be prepared for transcription. Please retry or type the statement instead.");
     }
   };
 
@@ -417,7 +415,7 @@ export default function CitizenIntake() {
         {recordingState === "recording" ? (
           <button type="button" onClick={stopRecording} className="pressable focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#102643] px-4 text-sm font-bold text-white"><Square className="h-4 w-4" /> Stop</button>
         ) : (
-          <button type="button" onClick={beginRecording} disabled={voiceState === "encrypting" || voiceState === "preparing"} className="pressable focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#c64e19] px-4 text-sm font-bold text-white disabled:opacity-50">{recordingState === "ready" ? <RotateCcw className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{recordingState === "ready" ? "Record again" : "Start recording"}</button>
+          <button type="button" onClick={beginRecording} disabled={voiceState === "preparing"} className="pressable focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#c64e19] px-4 text-sm font-bold text-white disabled:opacity-50">{recordingState === "ready" ? <RotateCcw className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{recordingState === "ready" ? "Record again" : "Start recording"}</button>
         )}
       </div>
       {audioPreviewUrl && <div className="mt-4 rounded-xl border border-[#102643]/10 bg-white/80 p-3"><p className="flex items-center gap-2 text-xs font-bold text-[#102643]"><Headphones className="h-4 w-4 text-[#c64e19]" />Listen back before transcript check</p><audio controls preload="metadata" src={audioPreviewUrl} className="mt-3 h-9 w-full" aria-label="Recorded statement preview" /></div>}

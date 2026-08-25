@@ -165,3 +165,8 @@
 - [x] Diagnose and repair hosted Samsung Browser font loading, letter spacing, and viewport readability.
 - [x] Add resilient typography and responsive scale fallbacks so headline and body text remain readable without manual zoom.
 - [x] Validate hosted-like rendering, automated checks, production build, and Raspberry Pi deployment for the readability repair.
+- [x] Verify the audit findings against the live code paths and define a safe remediation boundary.
+- [x] Remove the misleading client-side audio-encryption path and align privacy and integrity copy with actual behavior.
+- [x] Protect complaint record reads and mutations with unguessable capability tokens and rate limiting.
+- [x] Add CI check/test quality gates before Raspberry Pi deployment and remove stale root migration artifacts.
+- [x] Add regression coverage and validate the security, privacy, CI, production build, and Raspberry Pi deployment remediation.

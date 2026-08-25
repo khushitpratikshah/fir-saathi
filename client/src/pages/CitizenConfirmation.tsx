@@ -11,6 +11,7 @@ import { getAdaptiveFollowUps, getCitizenChosenContextOptions, type AdaptiveFoll
 import { trpc } from "@/lib/trpc";
 import { getLocalAudioReview } from "@/lib/localAudioReview";
 import { shouldReportReadBackError } from "@/lib/citizenRecovery";
+import { getCitizenAccess } from "@/lib/citizenRecordAccess";
 import type { TranscriptSegment } from "../../../shared/transcriptReview";
 
 const languageLabel = { en: "English", hi: "हिन्दी", gu: "ગુજરાતી", mr: "मराठी", bn: "বাংলা", ta: "தமிழ்", te: "తెలుగు", kn: "ಕನ್ನಡ", ml: "മലയാളം", pa: "ਪੰਜਾਬੀ" } as const;
@@ -19,9 +20,10 @@ export default function CitizenConfirmation() {
   const [, params] = useRoute("/confirm/:publicId");
   const [, navigate] = useLocation();
   const publicId = params?.publicId ?? "";
+  const citizenAccessCode = useMemo(() => getCitizenAccess(publicId), [publicId]);
   const localAudioUrl = useMemo(() => getLocalAudioReview(publicId), [publicId]);
   const localAudioRef = useRef<HTMLAudioElement | null>(null);
-  const detail = trpc.complaints.get.useQuery({ publicId }, { enabled: Boolean(publicId) });
+  const detail = trpc.complaints.get.useQuery({ publicId, citizenAccessCode }, { enabled: Boolean(publicId && citizenAccessCode) });
   const [speechAvailable, setSpeechAvailable] = useState(false);
   const [hasListened, setHasListened] = useState(false);
   const [fallbackAcknowledged, setFallbackAcknowledged] = useState(false);
@@ -33,40 +35,44 @@ export default function CitizenConfirmation() {
   const [transcriptCorrection, setTranscriptCorrection] = useState("");
   const selectedLanguage = detail.data?.complaint.language;
 
-  const confirm = trpc.complaints.confirm.useMutation({
+  const confirmMutation = trpc.complaints.confirm.useMutation({
     onSuccess: () => {
       toast.success("Your confirmation was recorded. The draft is ready for constable review.");
       navigate(`/status/${publicId}`);
     },
     onError: (error) => toast.error(error.message),
   });
+  const confirm = { ...confirmMutation, mutate: (_legacyInput?: unknown) => confirmMutation.mutate({ publicId, citizenAccessCode }) };
   const utils = trpc.useUtils();
-  const addClarification = trpc.complaints.addClarification.useMutation({
+  const addClarificationMutation = trpc.complaints.addClarification.useMutation({
     onSuccess: async () => {
-      await utils.complaints.get.invalidate({ publicId });
+      await utils.complaints.get.invalidate();
       setClarification("");
       toast.success("Your clarification was added separately from the source statement.");
     },
     onError: (error) => toast.error(error.message),
   });
-  const addContext = trpc.complaints.addContext.useMutation({
+  const addClarification = { ...addClarificationMutation, mutate: (input: { publicId: string; clarification: string }) => addClarificationMutation.mutate({ ...input, citizenAccessCode }) };
+  const addContextMutation = trpc.complaints.addContext.useMutation({
     onSuccess: async () => {
-      await utils.complaints.get.invalidate({ publicId });
+      await utils.complaints.get.invalidate();
       setFollowUpValue("");
       setChosenContextQuestion(null);
       toast.success("Your detail was saved separately from the source statement.");
     },
     onError: (error) => toast.error(error.message),
   });
-  const addTranscriptCorrection = trpc.complaints.addTranscriptCorrection.useMutation({
+  const addContext = { ...addContextMutation, mutate: (input: { publicId: string; key: "incident_when" | "incident_where" | "injury_or_safety" | "people_or_vehicle" | "property_or_loss" | "follow_up_contact"; value: string }) => addContextMutation.mutate({ ...input, citizenAccessCode }) };
+  const addTranscriptCorrectionMutation = trpc.complaints.addTranscriptCorrection.useMutation({
     onSuccess: async () => {
-      await utils.complaints.get.invalidate({ publicId });
+      await utils.complaints.get.invalidate();
       setTranscriptCorrection("");
       setSelectedSegment(null);
       toast.success("Your correction note was added separately from the source statement.");
     },
     onError: (error) => toast.error(error.message),
   });
+  const addTranscriptCorrection = { ...addTranscriptCorrectionMutation, mutate: (input: { publicId: string; passage: string; startSeconds: number; endSeconds: number; note: string }) => addTranscriptCorrectionMutation.mutate({ ...input, citizenAccessCode }) };
 
   useEffect(() => {
     if (!selectedLanguage || !("speechSynthesis" in window)) {
@@ -150,7 +156,7 @@ export default function CitizenConfirmation() {
                 <blockquote lang={complaint.language} className="mt-5 border-l-2 border-[#c64e19] pl-4 text-base leading-8 text-[#102643]">{complaint.sourceTranscript}</blockquote>
               </section>
 
-              {localAudioUrl && <section className="rounded-2xl border border-[#102643]/10 bg-[#f5f2eb] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">This-browser recording review</p><p className="mt-2 text-xs leading-5 text-slate-600">This preview is available only during this browser session. The stored evidence remains encrypted and is not exposed here.</p><audio ref={localAudioRef} controls preload="metadata" src={localAudioUrl} className="mt-3 h-9 w-full" aria-label="Original recorded statement preview" /></section>}
+              {localAudioUrl && <section className="rounded-2xl border border-[#102643]/10 bg-[#f5f2eb] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">This-browser recording review</p><p className="mt-2 text-xs leading-5 text-slate-600">This preview is available only during this browser session. The prototype does not retain the raw recording after transcription.</p><audio ref={localAudioRef} controls preload="metadata" src={localAudioUrl} className="mt-3 h-9 w-full" aria-label="Original recorded statement preview" /></section>}
               <TranscriptSegmentReview segments={transcriptSegments} selected={selectedSegment} onSelect={setSelectedSegment} onSeek={localAudioUrl ? seekLocalAudio : undefined} title="Review transcript timecodes" />
               {selectedSegment && <section className="rounded-2xl border border-[#c64e19]/20 bg-[#fff7f2] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a83d10]">Add a correction note</p><p className="mt-2 text-sm font-bold text-[#102643]">About “{selectedSegment.text}”</p><p className="mt-1 text-xs leading-5 text-slate-600">Your note is saved separately. It will not replace or rewrite the original transcript.</p><textarea value={transcriptCorrection} onChange={(event) => setTranscriptCorrection(event.target.value)} maxLength={1000} rows={3} className="focus-ring mt-4 w-full resize-y rounded-xl border border-[#c64e19]/25 bg-white p-3 text-sm leading-6 text-[#102643]" placeholder="For example, clarify a name, place, number, or word you think the transcript captured incorrectly." /><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-[11px] text-slate-500">{transcriptCorrection.length}/1000</p><div className="flex gap-2"><button type="button" onClick={() => { setSelectedSegment(null); setTranscriptCorrection(""); }} className="focus-ring rounded-lg px-3 py-2 text-xs font-bold text-slate-600">Cancel</button><button type="button" disabled={transcriptCorrection.trim().length < 2 || addTranscriptCorrection.isPending} onClick={() => addTranscriptCorrection.mutate({ publicId, passage: selectedSegment.text, startSeconds: selectedSegment.startSeconds, endSeconds: selectedSegment.endSeconds, note: transcriptCorrection })} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#102643] px-3 text-xs font-bold text-white disabled:opacity-50">{addTranscriptCorrection.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Save separate note</button></div></div></section>}
 
