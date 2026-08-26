@@ -1,298 +1,166 @@
-# FIR Saathi — Complete Project Context
+# FIR Saathi — Current Project Context
 
-**Project type:** Intel AI Impact Fest prototype  
-**Current product name:** FIR Saathi  
-**Primary purpose:** A multilingual, voice-first, source-preserving citizen complaint-intake and constable-review workspace for demonstration and evaluation.  
-**Important framing:** FIR Saathi is **not** an official police portal, emergency dispatch system, FIR-registration mechanism, legal decision engine, or deployed public-safety service.
+**Project:** FIR Saathi  
+**Purpose:** A multilingual, voice-first, source-preserving complaint-intake and human constable-review prototype for the Intel AI Impact Fest.  
+**Repository:** [github.com/khushitpratikshah/fir-saathi](https://github.com/khushitpratikshah/fir-saathi)  
+**Current framing:** This is a self-hostable demonstration prototype. It is **not** an official police portal, emergency service, FIR-registration system, legal-advice tool, or automated decision-maker.
 
-## 1. Project in one paragraph
+> **Product principle:** When a citizen speaks, the record should listen without silently changing their words. AI may assist with organisation and uncertainty, but people retain authority.
 
-FIR Saathi is designed around one central idea: **when a citizen speaks, the record should listen without changing their words**. It gives a citizen a calm way to describe an incident in a selected language through voice or text. The application preserves the original statement, uses AI only to identify exact source-backed details and possible gaps, asks for only the most useful missing context, and then routes the record into a human constable-review workflow. The prototype intentionally makes the boundaries visible: AI assists with structure and uncertainty, while citizens confirm their own words and constables make every review or verification decision.
+## 1. What FIR Saathi does
 
-> **Core principle:** The source statement is the record. AI may identify what is present or missing, but it must not translate, formalise, rewrite, invent, or silently alter the citizen’s account.
+FIR Saathi lets a citizen describe an incident in a language they select themselves, by voice or by typing. It preserves the resulting source statement, identifies only source-backed details, asks optional missing-detail questions one at a time, and requires an explicit citizen confirmation before sending the record to a protected constable-review workspace.
 
-## 2. The problem FIR Saathi addresses
+The constable sees the original source separately from later citizen additions, corrections, AI aids, evidence metadata, and audit history. The constable—not the AI—may return a record for clarification, correct a structured field with a reason, or mark the **prototype review** complete. No action in the application registers an FIR.
 
-Incident reporting is difficult when people are stressed, unsure what details matter, speak different languages, or fear that their words will be distorted. A conventional long form can force a citizen to guess legal categories before they have simply described what happened. A fully automated system can create a different risk: it may rewrite the story, infer facts, overstate confidence, or make the citizen believe an official decision has been made.
-
-FIR Saathi addresses the **intake and review experience**, not law-enforcement authority. It uses a source-preserving approach to make a citizen’s account easier to review while retaining clear human checkpoints. The Ministry of Home Affairs’ Digital Police service describes citizen-facing functions such as complaint filing, status access, FIR copies, and missing or recovered-property information; these references motivate clear case status and contextual information, but FIR Saathi does **not** claim to be part of that system.[1]
-
-| Design challenge | FIR Saathi response |
-|---|---|
-| Citizens may be more comfortable speaking than typing. | Voice capture and server-side transcription are available alongside typed entry. |
-| A witness may have already supplied key facts in a long narrative. | The transcript is examined first; the app avoids asking again for time, place, or safety details already present in source-backed fields. |
-| A long form can feel overwhelming. | Intake is reduced to language selection, the citizen’s own words, and a transcript check. |
-| Extra details are useful but should not modify the statement. | Context is stored separately as citizen-provided information. |
-| AI can sound more authoritative than it is. | The interface repeatedly states that a constable verifies and that the prototype does not register an FIR. |
-
-## 3. Intended users and roles
-
-### Citizen
-
-The citizen begins an intake, chooses a language explicitly, records or types a statement, sees the preserved source record, optionally answers only missing high-value questions, confirms their words, and can see a plain-language review status. The citizen can save an unfinished **text** intake using a private resume code. The code is intentionally treated as sensitive because it can reopen that draft.
-
-### Constable
-
-The constable opens a protected review queue, examines the source statement separately from citizen context, audio-evidence metadata, AI-extracted fields, clarification history, and readiness signals. The constable may correct a field with an audit reason, return a record for clarification, or verify the prototype record. A constable does **not** register an FIR through this interface.
-
-### Administrator
-
-An administrator can assign an approved profile the `constable` role through the small role-management dashboard. Authentication and role controls already exist in the project but are not the current product-development focus.
-
-## 4. End-to-end citizen workflow
-
-### 4.1 Landing page
-
-The landing page is an Intel AI Impact Fest showcase that explains the product thesis and offers two clearly separated paths: **Open citizen intake** and **Open review workspace**. Its message is deliberately aspirational but constrained: source preserved, human verified, multilingual by design.
-
-### 4.2 Guided intake
-
-The current intake has only three internal steps:
-
-1. **Choose language.** The citizen selects one language; the app does not guess the language from a short recording.
-2. **Share your own words.** The citizen records audio or enters text. They must explicitly consent to prototype processing.
-3. **Transcript check.** The app explains that it will preserve the source, identify source-backed information, and only then ask optional missing-detail questions.
-
-The old multi-question intake form was intentionally removed. It asked for time, place, safety, people, property, and contact details before the system knew whether those details were already in the statement. This made the flow repetitive and less natural.
-
-### 4.3 Voice capture and transcription
-
-For voice intake, the browser captures audio and encrypts the recorded evidence using AES-GCM before the encrypted bytes are stored in private Supabase Storage. The server sends the raw recording to Groq transcription with an instruction to transcribe exactly as spoken and not translate, formalise, summarise, correct, or add facts. The raw audio is not retained as an unencrypted public file.
-
-The returned transcript becomes the **source statement**. It is then processed by the drafting guardrails described below.
-
-### 4.4 Transcript-first adaptive follow-up
-
-After the source statement is drafted, FIR Saathi checks source-backed extracted fields before asking a question. The automatic high-value follow-up order is:
-
-| Possible question | It is shown only when the transcript does not already contain |
-|---|---|
-| **When did this happen?** | A source-backed date or time detail. |
-| **Where did this happen?** | A source-backed location or landmark detail. |
-| **Was there an injury, threat, or safety concern?** | A source-backed injury or safety detail. |
-
-The citizen sees **one optional question at a time** and can add an answer or skip it. If the citizen’s source statement already includes the detail, that question is not repeated.
-
-Additional information remains available without reinstating a long form. Once automatic high-value checks are complete, the citizen may choose to add one of these optional context types: **people or vehicle details**, **property or loss details**, or a **safe follow-up contact**. These are never forced. The contact prompt explicitly warns not to enter passwords, PINs, OTPs, or other secrets.
-
-### 4.5 Example synthetic scenario used for validation
-
-A synthetic test narration used during development described a woman at approximately 7:30 PM at the Alkapuri bus stand in Vadodara, a mobile-phone snatching by a person on a black motorcycle, an estimated property value, a red jacket and helmet, a nearby shopkeeper witness, and a safe contact number. In that scenario, the transcript already covered time, place, property, person/vehicle, witness, and follow-up contact. The intended behavior is to **not ask again** for those details. At most, the system may offer the optional injury/threat/safety question, which the citizen can skip.
-
-This is synthetic demonstration material only. It must never be presented as a real incident or a filed report.
-
-### 4.6 Citizen confirmation and status
-
-The citizen sees the original statement, the separate AI-extracted source-backed details, any separately entered context, and the fact that human review is still required. The citizen must explicitly confirm before the record becomes ready for review.
-
-The citizen-facing status page uses plain language, including states such as:
-
-| Record status | Citizen-facing meaning |
-|---|---|
-| `needs_citizen_confirmation` | Review your words before sending. |
-| `ready_for_review` | Your details are ready for human review. |
-| `returned` | A constable asked for one more detail. |
-| `verified` | The prototype review is complete; no FIR was registered by this application. |
-
-For completed review states, the main action returns the citizen to the **main page**, rather than prompting them to start another intake.
-
-## 5. Source-preservation model
-
-FIR Saathi’s most important product constraint is that information has different origins and must remain distinguishable.
-
-| Information type | What it is | How it is treated |
+| User | Main capability | Boundary |
 |---|---|---|
-| **Source statement** | The citizen’s typed statement or the verbatim voice transcript. | Preserved as the original record; application flow does not overwrite it. |
-| **Source-backed draft field** | An AI-identified fact whose source quote is an exact contiguous excerpt from the source statement. | Displayed as an aid; no paraphrased or inferred value is accepted. |
-| **Citizen context** | A separate voluntary answer, such as time, place, safety detail, property detail, or contact preference. | Stored separately with source `citizen_context`; not merged into the source transcript. |
-| **Citizen clarification** | A response supplied after a constable returns a record. | Appended separately and audited; it does not rewrite earlier source. |
-| **Officer correction** | A constable’s manual review adjustment. | Audited with a reason and distinct source label. |
+| **Citizen** | Start text or voice intake, confirm the source, add optional context, view status, rotate private access, or withdraw the prototype record. | Cannot access a record with its public reference alone. |
+| **Constable** | Review source, separate additions, transcript timecodes, AI aids, BNS review cards, and audit trail. | Cannot turn an AI suggestion into an automatic legal or FIR decision. |
+| **Administrator** | Assign approved users the constable role. | Role assignment and review access are server-enforced. |
 
-This separation is central to the demonstration. It lets a reviewer see what was directly said, what was added later by the citizen, what AI highlighted, and what a human officer changed.
+## 2. Citizen workflow
 
-## 6. AI behavior and safety constraints
+The public experience begins on the FIR Saathi showcase landing page. The citizen is directed into a compact, source-first intake flow.
 
-### Drafting model
+1. **Choose a language.** The citizen explicitly chooses English, Hindi, Gujarati, Marathi, Bengali, Tamil, Telugu, Kannada, Malayalam, or Punjabi. The product does not guess a source language from a short recording.
+2. **Provide a statement.** The citizen may type or make a browser recording after giving prototype-processing consent.
+3. **Create the source record.** For voice input, raw audio travels over encrypted transport to the server solely for transcription. The server sends it to the configured Groq transcription provider and does not retain the raw recording after transcription. The returned transcript becomes the persisted source statement.
+4. **Review only useful gaps.** AI may identify source-backed fields and high-value missing details. The citizen sees one optional follow-up at a time and can skip it. Context, clarification, and correction notes are stored separately from the source transcript.
+5. **Confirm before review.** The citizen reads or listens to the source statement, can add a separate correction note against a timecoded passage, and explicitly sends the record for human review.
+6. **Use private access safely.** The short `FS-…` reference identifies a record, while the separate `FSC-…` code is the private capability required for citizen access. The FSC is stored server-side only as a SHA-256 hash and is retained in the browser session, not presented as an identity system.
 
-Groq’s OpenAI-compatible API is used for structured drafting. The configured drafting model is `openai/gpt-oss-20b`. The model must return a constrained JSON object containing source-backed fields, missing details, optional follow-up questions, and bounded BNS review suggestions.
+### Citizen record lifecycle
 
-### Transcription model
-
-Groq `whisper-large-v3` is used for audio transcription. The prompt explicitly requires an exact transcription without translation, formalisation, summarisation, correction, or invented facts.
-
-### Mandatory AI rules
-
-The product enforces the following rules in prompts, schemas, and normalization code:
-
-- Extracted field quotes must be **exact contiguous excerpts** from the source statement.
-- A field is rejected if its quote is not found inside the original source.
-- The assistant may identify missing information, but must not infer names, motives, intent, actions, emotions, credibility, jurisdiction, or legal conclusions.
-- The selected source language is retained; source text is not silently translated into another language.
-- The assistant must remain low-confidence or ask for officer review where it cannot safely support a suggestion.
-- The fallback state is human review, not fabricated completion.
-
-## 7. BNS review assistance
-
-The prototype contains a deliberately constrained, source-linked Bharatiya Nyaya Sanhita review catalogue. It is a **constable review aid**, not a charge recommendation engine. Each non-generic BNS card must be supported by exact source excerpts, list ambiguity or missing factors, link to the official source, and remain subject to human assessment.
-
-The application’s legal framing is conservative. The Bharatiya Nagarik Suraksha Sanhita identifies information in cognizable cases and references concepts such as time, place, and person; FIR Saathi uses those ideas only to prompt clearer factual context, not to classify an offence or create an official record.[2] The BNS catalogue links to the official gazette text and is explicitly demonstrative/non-authoritative.[3]
-
-| What the BNS interface may do | What it must not do |
+| Status | Meaning in the prototype |
 |---|---|
-| Show a possible, source-grounded review reference. | Decide which law applies. |
-| Quote the portion of the citizen’s statement that triggered the reference. | Recommend a charge or present a legal conclusion. |
-| Highlight missing factual factors for a constable to examine. | Determine whether an FIR should be registered. |
-| Display a source link and review date. | Replace professional or official assessment. |
+| `draft` | Intake is incomplete. |
+| `needs_citizen_confirmation` | The source statement is ready for the citizen to check. |
+| `ready_for_review` | The citizen has confirmed and the record is ready for a constable. |
+| `returned` | A constable requested a separate clarification. |
+| `verified` | Human prototype review is complete; this does not register an FIR. |
+| `withdrawn` | The citizen withdrew the active prototype record. It is removed from normal workspaces and private access is revoked. |
 
-## 8. Constable review workflow
+An FSC can be rotated from the citizen status page. Rotation invalidates the previous capability immediately and returns the replacement only once. Withdrawal clears the active private capability and blocks further citizen or constable workflow actions. FIR Saathi retains a minimal status/audit tombstone for prototype integrity; it does **not** claim certified deletion from every database backup, provider log, or legally applicable retention system.
 
-The protected review workspace is designed to make the record legible instead of pretending that AI has completed the work.
+## 3. Source-preservation model
 
-The constable can see:
+The application intentionally distinguishes information by origin instead of merging it into one polished narrative.
 
-- The preserved source statement.
-- Separate citizen context and later clarifications.
-- Source-backed extracted fields and their confidence labels.
-- Audio-evidence metadata, encryption details, and a ciphertext-hash recheck action.
-- A record timeline and audit history.
-- An advisory case-readiness panel that highlights source presence, time/place coverage, context, clarification state, evidence metadata, and missing-detail signals.
-- Source-linked BNS review cards and a concise officer review brief.
-
-The constable can correct a field with a reason, return a record for clarification, or verify the prototype record. These actions create audit events. Verification remains a human action and is explicitly described as **not FIR registration**.
-
-## 9. Languages
-
-The citizen must select one of ten explicit language options:
-
-| Code | Language |
-|---|---|
-| `en` | English |
-| `hi` | Hindi |
-| `gu` | Gujarati |
-| `mr` | Marathi |
-| `bn` | Bengali |
-| `ta` | Tamil |
-| `te` | Telugu |
-| `kn` | Kannada |
-| `ml` | Malayalam |
-| `pa` | Punjabi |
-
-The interface supports language selection and multilingual source capture. It does not claim legal-quality translation or attempt to convert a citizen’s original account into another language.
-
-## 10. Data model and auditability
-
-FIR Saathi uses Supabase as the persistent backend. The important logical records are:
-
-| Record | Purpose |
-|---|---|
-| `fir_saathi_complaints` | Public reference, language, status, consent, preserved source transcript, and structured draft JSON. |
-| `fir_saathi_complaint_fields` | Source-backed fields, separate citizen context, clarifications, and officer corrections. |
-| `fir_saathi_audit_events` | Lifecycle events including creation, transcription, drafting, context addition, clarification, confirmation, correction, return, verification, and evidence checks. |
-| `fir_saathi_audio_evidence` | Encrypted evidence storage reference, MIME type, byte size, hash, encryption metadata, and tamper-check status. |
-| `fir_saathi_intake_drafts` | Expiring, code-gated unfinished text drafts. Resume codes are hashed server-side. |
-| `fir_saathi_bns_references` | Source-linked BNS catalogue data used by review cards. |
-| `fir_saathi_profiles` | User profile and role assignment data. |
-
-Row-level security is used for the underlying Supabase tables, and the private/server operations are performed through server-side access rather than browser-held service credentials.
-
-## 11. Technical architecture
-
-### Application stack
-
-| Layer | Technology | Role |
+| Information type | Meaning | Treatment |
 |---|---|---|
-| Front end | React 19, TypeScript, Tailwind CSS 4, Wouter | Citizen and constable interfaces. |
-| API layer | Express 4 + tRPC 11 | Typed public and protected application procedures. |
-| Database and auth | Supabase | PostgreSQL persistence, email/password accounts, roles, RLS, and private storage. |
-| Drafting and transcription | Groq | Structured source-preserving drafting and speech-to-text. |
-| Object storage | Supabase Storage | Private encrypted audio evidence storage. |
-| Testing | Vitest | Unit, contract, guardrail, and provider-integration checks. |
+| **Source statement** | Typed citizen words or the voice transcript. | Stored as the original record and never silently rewritten by application flow. |
+| **Source-backed draft field** | AI-extracted detail with an exact contiguous source quote. | Rejected if the quote is absent from the original source. |
+| **Citizen context** | Voluntary extra detail, such as time, place, safety, property, people/vehicle, or follow-up contact. | Stored separately; never merged into the original statement. |
+| **Citizen correction/clarification** | A later citizen note, possibly attached to a timecoded passage. | Appended separately and audited. |
+| **Officer correction** | Human review adjustment. | Stored separately with a reason and audit event. |
+| **Reviewer translation aid** | English aid plus back-translation for constables. | Session-only, non-authoritative, and never substitutes for the original language source. |
 
-### Key runtime sequence
+## 4. AI functions and hard boundaries
+
+FIR Saathi uses Groq’s OpenAI-compatible API on the server. The current drafting model is `openai/gpt-oss-20b`; transcription uses `whisper-large-v3`.
+
+### What AI may do
+
+AI may identify explicit source-backed details, identify missing factual context, phrase optional follow-up questions in the selected language, produce a separate constable translation aid, and surface a bounded possible-match BNS review card.
+
+### What AI must not do
+
+AI must not translate or formalise the original source record, invent facts, infer motives or credibility, decide jurisdiction, recommend a charge, verify a complaint, register an FIR, or present a legal conclusion. The safe fallback is **human review**, not an invented completion.
+
+The drafting normaliser enforces a fixed field-key allow-list, exact contiguous source excerpts, and catalogue-limited BNS suggestions. It also rejects common prompt-control framing when a model attempts to turn source-embedded instructions into structured record fields.
+
+### BNS review assistance
+
+The BNS interface is a demonstrative, non-authoritative constable review aid. A non-`REVIEW` suggestion must be from the small maintained catalogue, cite exact source excerpts, disclose missing or ambiguous factors, and remain subject to human assessment. The catalogue links to the official Bharatiya Nyaya Sanhita text; it is not a substitute for legal analysis or official process.[1]
+
+## 5. Transcription, confidence, and language boundaries
+
+Each stored transcript segment may include Groq timestamp and `avg_logprob` metadata. FIR Saathi previously highlighted a hard-coded `-0.85` low-confidence threshold. That threshold is now **disabled** because it was not calibrated against real reference transcripts and could train users to ignore noisy warnings.
+
+The repository now contains an evidence-gated calibration workflow. Before amber segment highlighting can be activated, the project requires at least 100 independently reference-checked segments from the same provider/model, a documented corpus and normalisation method, and reported precision/recall. The tool then selects only a threshold meeting the configured precision requirement; a maintainer must review and explicitly activate it.
+
+FIR Saathi does not claim that Malayalam, Punjabi, or any other supported language has a particular word-error rate. A result from a different provider, model, corpus, or audio domain is not treated as evidence for the deployed Groq endpoint. Candidate reference sources and the required evaluation protocol are documented in `docs/ASR_EVALUATION_PROTOCOL.md` and `docs/evaluations/REFERENCE_TRANSCRIPT_FORMAT.md`.
+
+## 6. Safety evaluation evidence
+
+The project has two deliberately separate adversarial-evaluation layers.
+
+| Layer | Scope | Current evidence |
+|---|---|---|
+| **Deterministic invariant suite** | Tests source-quote, safe-field-key, BNS-catalogue, prompt-control, and API input boundaries across all ten supported scripts. | Runs in normal tests and validates the server boundary, not live-model behaviour. |
+| **Opt-in live Groq evaluator** | Sends ten hostile source statements to the configured drafting model and records raw-result classification, normaliser mitigation, provider availability, and malformed responses. | A recorded run produced 4 parseable responses: 2 contained unsafe non-`REVIEW` BNS output from instruction-only sources, and both were mitigated by the deterministic normaliser. The remaining 6 were unusable JSON and are not counted as blocked. |
+
+This evidence is intentionally not represented as a perfect safety score. The saved result is located at `docs/evaluations/live-groq-adversarial-latest.json`. Running it requires `RUN_LIVE_GROQ_EVAL=1 pnpm eval:live-adversarial` and consumes provider quota.
+
+## 7. Privacy and access safeguards
+
+The prototype does not persist raw voice recordings after transcription. It stores the source transcript, structured data, audit events, and audio metadata such as hashes and segment metadata. Browser-session audio preview is only available while the local session remains open.
+
+Citizen record access is capability-based. The public `FS-…` reference is not sufficient to read or change a record; the private FSC code is required and compared server-side against a stored hash. Public citizen procedures are rate-limited in memory per IP and scope. This is appropriate for the current single-process Raspberry Pi prototype but is not horizontally scalable; a production deployment would need shared, durable rate limiting.
+
+Supabase row-level security is enabled for the persistent records. Server-only credentials, including the Supabase service-role key and Groq key, remain outside the repository. Supabase leaked-password protection is currently unavailable on the connected Free-plan project; the README documents the dashboard action required after a plan upgrade rather than claiming it is enabled.[2]
+
+## 8. Technical architecture
+
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Front end | React 19, TypeScript, Tailwind CSS 4, Wouter, GSAP | Citizen intake, status, judge guide, constable workspace, accessibility, and reduced-motion-aware presentation. |
+| Server/API | Express 4 and tRPC 11 | Typed procedures, role checks, citizen capability enforcement, validation, and provider orchestration. |
+| Persistence/auth | Supabase PostgreSQL, Auth, Storage, RLS | Complaint records, fields, audit events, user profiles, roles, and controlled storage. |
+| AI providers | Groq | Server-side source-preserving drafting, transcription, and reviewer translation aid. |
+| Tests | Vitest | Unit, integration-boundary, guardrail, calibration, and UI helper checks. |
+| Deployment | Raspberry Pi 5, Node 22, pnpm, systemd, Cloudflare Tunnel, GitHub Actions self-hosted runner | Self-hosted production process and guarded deployment path. |
 
 ```text
-Citizen voice or text
-        ↓
-Browser encrypts recorded audio (voice path)
+Citizen text or browser audio
         ↓
 Express/tRPC server
         ↓
-Groq transcription (voice) → verbatim source transcript
+Groq transcription (voice only) → source transcript
         ↓
-Groq structured drafting → source-backed fields + gap signals
+Groq structured drafting → normalisers and safety boundary
         ↓
-Supabase complaint, fields, audit events, private evidence metadata
+Supabase: complaint + fields + audit + metadata
         ↓
-Citizen confirms → constable reviews → human verification or clarification loop
+Citizen confirmation → protected constable review → human action
 ```
 
-### Deployment and self-hosting context
+## 9. Authentication, administration, and deployment
 
-The application is portable and does not require a local database or a built-in Manus AI service when self-hosted. The current self-hosting design uses:
+Constable and administrator access uses Supabase email/password authentication with server-side role enforcement. The administrator dashboard can assign an approved profile the `constable` role. Citizens do not require accounts; their record access uses the FSC capability instead.
 
-- A **Raspberry Pi 5 (8 GB)** running a native Node.js 22 and pnpm application service.
-- A dedicated unprivileged `firsaathi` Linux account.
-- A `systemd` service named `fir-saathi` that runs the compiled Node production server from `/srv/fir-saathi/app`.
-- **Cloudflare Tunnel** and a user-owned domain for HTTPS public access without opening router ports or requiring a public IP.
-- External Supabase for database, authentication, and private storage.
-- External Groq for transcription and structured drafting.
-- A custom Resend SMTP configuration in Supabase for reliable account-confirmation emails.
+The self-hosted deployment runs on a Raspberry Pi 5 under an unprivileged service account. A `systemd` service runs the compiled Node server, while Cloudflare Tunnel provides HTTPS access through the user’s domain without opening inbound router ports. Supabase remains the external database/auth service and Groq remains the external AI provider.
 
-Secrets remain outside the repository in `/etc/fir-saathi.env`. Public Vite configuration uses the Supabase project URL and publishable key at build time. Server-only values include the Supabase service-role key, Groq key, session secret, and bootstrap-administrator email. No secret should appear in screenshots, recordings, public repositories, or video material.
+The GitHub Actions workflow runs on the Raspberry Pi’s self-hosted ARM64 runner. It performs dependency installation, TypeScript checking, the offline test suite, production build, and service restart only after the quality job succeeds. The most recent audit-remediation release passed **56 tests with 3 deliberate live-provider skips**, completed a production build, and passed the guarded Raspberry Pi deployment.
 
-## 12. Visual and interaction design
+Normal `pnpm test` is clone-safe and offline: mocked provider tests receive a test-only Groq key, while Groq, Supabase, and Supabase Storage smoke tests run only when `RUN_LIVE_PROVIDER_TESTS=1` is explicitly set with real server-side credentials.
 
-### Visual identity
+## 10. Visual and presentation design
 
-The visual direction is a civic-technology workspace rather than a literal police portal. It uses:
+FIR Saathi uses a civic-technology design language: deep navy for serious review surfaces, ember orange for actions and emphasis, warm paper-toned citizen panels, a shield/listening-wave identity, and readable Indian-script fallbacks. The citizen path is warm and supportive; the constable workspace is restrained and source-first.
 
-- A deep navy base (`#0c2039` / related dark surfaces) to create seriousness and trust.
-- An ember orange accent (`#c64e19`) for action, emphasis, and the FIR Saathi speech/shield motif.
-- Paper-toned review surfaces to make the citizen workflow calmer and more readable.
-- The FIR Saathi mark: a navy shield, orange speech-bubble “S” stroke, and listening-wave references.
-- DM Sans with Indian-language fallbacks, including Noto Sans Devanagari and Noto Sans Gujarati.
+Motion is intentionally limited to hierarchy, feedback, and recording/readiness cues. It respects `prefers-reduced-motion` and never presents an AI inference as a decision. The public `/process` page visualises the end-to-end workflow, while `/demo` contains a short judge-facing walkthrough and safeguards summary.
 
-### Mobile design decisions
+## 11. Current scope and known limitations
 
-The application is designed mobile-first because citizen intake is likely to begin on a phone. Touch targets are substantial, actions are full-width when appropriate, and questions are one at a time. The landing-page hero headline was specifically repaired for mobile/Samsung Internet: it now uses explicit block lines, responsive type sizing, and disables the transform-based entrance animation on small screens to prevent overlapping text.
+FIR Saathi is a prototype designed for demonstration, evaluation, and controlled self-hosting—not real public safety deployment. It does not provide emergency dispatch, official FIR registration, legal advice, formal records retention guarantees, biometric identity verification, production-scale abuse prevention, or a validated multilingual transcription benchmark.
 
-### Responsive visual validation
+The live model evaluator is intentionally small and provider-dependent. The transcript-confidence calibration machinery is implemented, but activation waits for real reference data. The private FSC mechanism is an access capability, not a recovery service; a citizen who loses it must begin a new intake. Historical records created before FSC support cannot be safely reopened without a capability.
 
-The landing hero and citizen-confirmation experience were visually reviewed in development at a **1280 × 720 desktop viewport** and a **375 × 812 phone viewport**. At desktop size, the hero headline, structured source statement, optional-detail controls, context cards, and confirmation action remained readable without overlap or clipped controls. At phone size, the hero’s explicit headline lines remained legible, and the confirmation journey stacked cleanly with readable source text, full-width optional-detail buttons, and a reachable confirmation action.
+## 12. Non-negotiable rules for future work and presentations
 
-### Motion philosophy
-
-Motion is subtle and purposeful: waveform movement communicates active listening, small fade-ins support page hierarchy, and buttons provide quick tactile feedback. Animations respect reduced-motion preferences. Motion must never obscure the source statement or make a legal/AI decision appear more certain.
-
-## 13. What to say and what not to say about the project
-
-| Appropriate description | Avoid saying |
-|---|---|
-| “A multilingual, source-preserving complaint-intake and constable-review prototype.” | “An official FIR filing system.” |
-| “AI identifies explicit source-backed details and possible gaps.” | “AI understands the case” or “AI decides what happened.” |
-| “Citizens confirm their own words; constables review and verify.” | “The app verifies complaints automatically.” |
-| “BNS cards are demonstrative, source-linked review aids.” | “The app recommends charges” or “the app gives legal advice.” |
-| “The prototype cannot dispatch emergency services.” | “The app sends police/emergency help.” |
-| “It is built for an Impact Fest demonstration and self-hostable prototype evaluation.” | “It is live government infrastructure.” |
-
-## 14. Current implementation state
-
-The core working product includes the landing page, multilingual text/voice intake, source-preserving Groq workflows, optional resumable text drafts, citizen confirmation, context separation, clarification loops, role-protected constable review, BNS review aids, audit history, encrypted audio-evidence metadata, Supabase email/password authentication, and Raspberry Pi deployment through Cloudflare Tunnel.
-
-The most recent live Raspberry Pi validation used the synthetic Rekha Sharma voice scenario. The spoken source explicitly included an approximate time, place, mobile/property description, motorcycle and clothing details, a nearby witness, and a contact number. The user confirmed that the flow worked as intended: those transcript-covered details were not repeated as mandatory follow-up prompts. The implementation may offer the separate **injury, threat, or safety** question only when that detail is absent; it is optional and can be skipped. The exact optional-prompt display state was not retained as a screenshot, so it should not be presented as a recorded UI outcome.
-
-## 15. Non-negotiable guardrails for any future work or presentation
-
-1. Do not present FIR Saathi as an official, emergency, dispatch, police, legal, or FIR-registration platform.
-2. Do not imply that AI rewrites, translates, formalises, interprets, or determines the truth of the citizen’s source statement.
-3. Do not present BNS suggestions as legal conclusions, charging advice, or registration outcomes.
-4. Do not use real victim, witness, audio, phone, address, or incident data in demos, screenshots, videos, or prompts.
-5. Use synthetic examples and clearly label them as synthetic.
-6. Do not reveal Supabase service keys, Groq keys, resume codes, SMTP credentials, passwords, JWT secrets, or infrastructure details that would expose the deployment.
-7. Preserve the distinction between source statement, citizen context, AI extraction, officer correction, and human verification in every future feature.
+1. Never describe FIR Saathi as an official FIR filing, emergency, police-dispatch, or legal-decision system.
+2. Preserve the separation between source statement, citizen additions, AI extraction, translation aid, officer correction, and human verification.
+3. Never claim that AI rewrites, interprets, or decides the citizen’s account.
+4. Keep BNS cards non-authoritative, source-linked, and limited to human review support.
+5. Use only synthetic examples in demonstrations, screenshots, recordings, prompts, and videos.
+6. Never expose service keys, passwords, tokens, FSC/FSR codes, personal data, or deployment secrets.
+7. Do not activate confidence highlighting or a language-specific WER label without model-matched, documented evaluation evidence.
+8. Be explicit that withdrawal revokes normal access but retains minimum audit metadata and is not certified external deletion.
 
 ## References
 
-[1]: https://digitalpolice.gov.in/ "Digital Police — Ministry of Home Affairs / NCRB"
-[2]: https://www.indiacode.nic.in/bitstream/123456789/20099/1/A202346.pdf "Bharatiya Nagarik Suraksha Sanhita, 2023"
-[3]: https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf "The Bharatiya Nyaya Sanhita, 2023 — official gazette text"
+[1]: https://www.mha.gov.in/sites/default/files/250883_english_01042024.pdf "The Bharatiya Nyaya Sanhita, 2023 — official gazette text"
+
+[2]: https://supabase.com/docs/guides/auth/password-security "Supabase: Password security"
