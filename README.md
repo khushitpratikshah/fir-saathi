@@ -1,24 +1,153 @@
+<div align="center">
+
 # FIR Saathi
 
-FIR Saathi is a multilingual, voice-first **prototype** for source-preserving complaint drafting and human review. It does not register FIRs, provide legal advice, or accept emergency reports.
+### The source-preserving intake layer for multilingual public-service review
+
+**Citizens keep their own words. Constables get a clearer review surface. AI assists with structure and uncertainty—people retain authority.**
+
+[![Deploy to Raspberry Pi](https://github.com/khushitpratikshah/fir-saathi/actions/workflows/deploy-raspberry-pi.yml/badge.svg)](https://github.com/khushitpratikshah/fir-saathi/actions/workflows/deploy-raspberry-pi.yml)
+[![Prototype](https://img.shields.io/badge/status-prototype-f48a51?labelColor=102643)](#scope-and-boundaries)
+[![Self-hostable](https://img.shields.io/badge/runtime-self--hostable-2f83b5?labelColor=102643)](#self-hosted-stack)
+
+</div>
+
+> **FIR Saathi is a demonstration prototype—not an official police portal, emergency service, FIR-registration system, legal-advice engine, or automated decision-maker.** Do not use it for real or urgent complaints.
+
+<div align="center">
+
+![FIR Saathi evidence board](docs/assets/evidence-board.png)
+
+</div>
+
+## The first 15 seconds
+
+Most intake tools optimise for completing a form. FIR Saathi optimises for **preserving the account while making human review easier**. A citizen can speak or type in one of ten explicitly selected Indian languages. The source statement stays separate from structured fields, citizen context, corrections, translation aids, and officer edits. The system asks only an optional, high-value follow-up when a useful detail is genuinely absent, then hands the record to a constable for human review.
+
+That is the product in one sentence: **less translation between a citizen’s account and a reviewer’s workspace, without pretending that AI is the authority.**
+
+| What a reviewer needs | What FIR Saathi makes visible |
+|---|---|
+| The citizen’s actual account | An immutable source statement, kept in the original language |
+| The details needed to review it | Fixed source-backed fields with exact excerpts and separate citizen context |
+| The gaps worth asking about | One optional, high-value follow-up at a time; citizens can skip |
+| The human decision boundary | Constable review, corrections with reasons, audit history, and no automatic FIR decision |
+
+<div align="center">
+
+![FIR Saathi language picker](docs/assets/intake-language-picker.webp)
+
+<sub>The real citizen intake screen: English, Hindi, and Gujarati are personally tested; the remaining seven options are explicitly marked Experimental.</sub>
+
+</div>
+
+## The honest scoreboard
+
+Here are the four questions a serious evaluator should ask. The numbers below distinguish **observed evidence**, **implemented product behaviour**, and **measurements still requiring a controlled pilot**. That distinction is part of the design, not a footnote.
+
+| Question | What we can defend today | Status |
+|---|---|---|
+| **How much time does FIR Saathi save a constable?** | The system is designed to reduce repeated intake-and-structuring work, but no valid baseline-vs-FIR-Saathi time study has been run yet. The correct endpoint is time from source-record arrival to review-ready human action. | **Pilot measurement pending** |
+| **How much does source-preserving intake reduce missing information?** | The product checks fixed high-value categories and asks one optional follow-up at a time, without merging answers into the source. The reduction in missing-detail rate has not yet been measured against a baseline. | **Pilot measurement pending** |
+| **How well does transcription work by language?** | English, Hindi, and Gujarati have been personally tested qualitatively. Marathi, Bengali, Tamil, Telugu, Kannada, Malayalam, and Punjabi are available but marked **Experimental**. No model-matched WER claim is published. | **Language evidence in progress** |
+| **How often does AI attempt unsupported information, and how often is it caught?** | In the recorded ten-fixture hostile run, 4 responses were parseable; 2 of those attempted unsafe non-`REVIEW` BNS output, and the deterministic normaliser mitigated both. That leaves **0 unmitigated evaluated responses**. Six malformed responses are not counted as blocked. | **Observed snapshot, not a benchmark** |
+
+> **Why show “not yet benchmarked”?** Because a made-up time-saved number or language WER would be less useful than an honest measurement plan. FIR Saathi is ready to be evaluated; it is not claiming that a prototype snapshot is a field study.
+
+## What is already working
+
+FIR Saathi is not just a landing-page concept. The repository contains a complete citizen-to-constable prototype with portable deployment, server-side provider calls, capability-protected citizen access, audit history, and a deterministic boundary around AI output.
+
+| Capability | Product behaviour |
+|---|---|
+| **Source-first intake** | Typed or voice statements become the source record; application flow never silently rewrites them. |
+| **Multilingual access** | Ten explicit choices: English, Hindi, Gujarati, Marathi, Bengali, Tamil, Telugu, Kannada, Malayalam, and Punjabi. |
+| **Useful follow-ups** | The app checks time, place, people/vehicle, property/loss, and injury/safety categories, then asks only optional questions that remain relevant. |
+| **Human review** | A protected constable workspace keeps source, additions, corrections, evidence metadata, AI aids, and audit history in separate lanes. |
+| **Bounded legal aid** | A small catalogue of non-authoritative BNS review cards requires exact source quotes and falls back to `REVIEW` when evidence is insufficient. |
+| **Reviewer translation aid** | English translation and back-translation are separate, session-only, constable-only aids; neither replaces the original source. |
+| **Private citizen access** | The public `FS-…` reference is not enough to open a record. A separate `FSC-…` capability is required and only its hash is persisted. |
+| **Portable runtime** | React and Express run on a Raspberry Pi; Supabase provides data/auth/storage and Groq provides drafting/transcription. |
+
+## Evidence, not marketing theatre
+
+### 1. Constable time saved: the measurement we still need
+
+The workflow is deliberately shaped around a plausible time-saving mechanism: the citizen’s source stays intact, the system surfaces exact excerpts instead of producing a polished invented narrative, and only high-value missing details are offered as optional follow-ups. That should reduce the reviewer’s need to re-read, re-structure, and re-ask basic questions—but the repository does not contain a defensible time-saved benchmark yet.
+
+A credible pilot would use matched synthetic scenarios and the same reviewers in two conditions: a baseline intake and FIR Saathi. It should report median and percentile time to review-ready action, the number of clarification loops, and source-fidelity errors. Until that is run, the README intentionally says **measurement pending**, not “saves X minutes.”
+
+### 2. Missing information: measure coverage without corrupting the source
+
+FIR Saathi’s current mechanism is implemented, not merely promised. It checks a fixed set of categories, avoids asking a question when the source or separate citizen context already covers it, and stores context separately rather than silently enriching the citizen’s statement. The relevant future metric is the change in independently coded detail coverage between a baseline intake and the source-preserving flow.
+
+| Proposed pilot metric | Definition |
+|---|---|
+| Detail coverage | Percentage of independently judged relevant categories with usable information in the record |
+| Clarification efficiency | Number of follow-up questions needed before a reviewer can begin |
+| Source fidelity | Count of cases where a structured field or correction cannot be traced to source/context provenance |
+| Citizen burden | Completion rate, skip rate, and time spent on optional follow-ups |
+
+### 3. Transcription quality by language
+
+The app preserves provider timestamps and optional `avg_logprob` metadata, but it does not colour a citizen’s wording using an uncalibrated magic threshold. A language-specific WER claim requires reference-checked audio that matches the deployed provider, model, language, and intended audio domain. The current language status is therefore explicit and conservative.
+
+| Language | App status | Current evidence |
+|---|---|---|
+| English | Supported | Personally tested qualitatively; no formal WER study |
+| Hindi | Supported | Personally tested qualitatively; no formal WER study |
+| Gujarati | Supported | Personally tested qualitatively; no formal WER study |
+| Marathi | **Experimental** | No provider-matched reference evaluation published |
+| Bengali | **Experimental** | No provider-matched reference evaluation published |
+| Tamil | **Experimental** | No provider-matched reference evaluation published |
+| Telugu | **Experimental** | No provider-matched reference evaluation published |
+| Kannada | **Experimental** | No provider-matched reference evaluation published |
+| Malayalam | **Experimental** | No provider-matched reference evaluation published |
+| Punjabi | **Experimental** | No provider-matched reference evaluation published |
+
+The repository includes a calibration workflow that requires at least 100 independently reference-checked segments before confidence highlighting can be activated. It also documents the input format, corpus requirements, and the rule that results from another model or corpus cannot be presented as evidence for this deployment.[2]
+
+### 4. Unsupported AI output and deterministic catching
+
+The live adversarial evaluator is intentionally small and provider-dependent, but it is concrete. It sent ten hostile source statements to the configured drafting model. The saved run recorded four parseable model responses, two unsafe non-`REVIEW` BNS suggestions from instruction-only sources, two deterministic mitigations, zero unmitigated evaluated responses, and six unusable JSON responses that were **not** counted as successful blocks.[1]
+
+The deterministic invariant suite is a separate, stronger boundary test. It verifies four post-generation invariants across ten supported scripts: unsupported field keys are discarded, invented source quotes are discarded, under-evidenced catalogue suggestions collapse to `REVIEW`, and non-catalogue BNS codes collapse to `REVIEW`. It also exercises delimiter breakout, role-play framing, zero-width obfuscation, homoglyph variation, and unknown context-key rejection. This is evidence that the application boundary behaves as designed; it is not a claim that a live model has a perfect safety score.[3]
+
+## The workflow
+
+```mermaid
+flowchart LR
+    A[Citizen speaks or types] --> B[Explicit language choice]
+    B --> C[Source statement preserved]
+    C --> D[Exact excerpts and fixed detail checks]
+    D --> E{Useful detail missing?}
+    E -- Yes --> F[One optional follow-up]
+    E -- No --> G[Citizen reviews source]
+    F --> G
+    G --> H[Corrections and context stay separate]
+    H --> I[Constable reviews]
+    I --> J[Human prototype action]
+```
+
+The key boundary is visible in the data model: the source statement, source-backed AI fields, citizen context, citizen corrections, officer corrections, translation aid, and audit events remain distinct. A human constable verifies the prototype review. Nothing in the application registers an FIR.
 
 ## Self-hosted stack
 
-The running application uses React, Express, tRPC, Groq, Supabase Storage, Supabase Postgres, and Supabase Auth. It has no active dependency on hosted platform OAuth, hosted AI, hosted storage, hosted analytics, or a hosted Vite runtime.
+The deployed application is portable. The Raspberry Pi runs the React build and Express/tRPC server, while hosted services remain replaceable infrastructure for the database, authentication, private evidence storage, and AI provider calls.
 
-| Capability | Portable service |
-|---|---|
-| Account sessions and roles | Supabase Auth and `public.fir_saathi_profiles` |
-| Complaint workflow and audit history | Supabase Postgres |
-| Encrypted evidence bytes | Private Supabase Storage bucket `fir-saathi-evidence` |
-| Drafting and transcription | Groq API |
-| Administrator role management | FIR Saathi `/admin` dashboard |
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Front end | React 19, TypeScript, Tailwind CSS 4, Wouter, GSAP | Citizen intake, review surfaces, accessibility, and responsive presentation |
+| API | Express 4 and tRPC 11 | Typed procedures, validation, authorization, and provider orchestration |
+| Data/auth/storage | Supabase PostgreSQL, Auth, Storage, and RLS | Complaint records, roles, audit events, and private evidence objects |
+| AI provider | Groq | Server-side drafting and Whisper transcription |
+| Deployment | Raspberry Pi 5, Node 22, pnpm, systemd, Cloudflare Tunnel | Self-hosted production process and HTTPS ingress |
 
 ## Run locally
 
-Install Node.js 22+ and pnpm, then create a local `.env` file from this example:
+Install Node.js 22 or newer and pnpm. Create a server-only environment file using the following shape; never commit real credentials.
 
-```bash
+```dotenv
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 VITE_SUPABASE_URL=https://your-project.supabase.co
@@ -26,49 +155,51 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-public-supabase-publishable-key
 GROQ_API_KEY=your-groq-key
 FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL=your-admin@example.com
 PORT=3000
-NODE_ENV=production
+NODE_ENV=development
 ```
 
-Run `pnpm install`, apply the SQL files in `supabase/migrations/` to the target Supabase project, then use `pnpm build` and `pnpm start`.
+Apply the SQL files in `supabase/migrations/` to the target Supabase project, then install dependencies and run the development server.
 
-## Initial administrator setup
+```bash
+pnpm install
+pnpm dev
+```
 
-The exact email in `FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL` can sign in to `/admin` first. Every other new account starts as a citizen. From the dashboard, approve authorised reviewers as **constables**. Constables can access the review workspace but cannot manage roles. The dashboard never grants the protected administrator role.
+For a production build, use `pnpm build` followed by `pnpm start`. The browser receives only the public Supabase URL and publishable key; the Supabase service-role key and Groq key stay server-side.[4]
 
-After a trusted administrator profile has been established, you may remove the bootstrap environment variable and assign the `administrator` profile role directly through a controlled Supabase migration or your internal operations process.
+## Raspberry Pi deployment
 
-## Supabase Auth URL configuration
+The repository includes a guarded GitHub Actions workflow for a repository-scoped Linux/ARM64 self-hosted runner. A push to `main` runs type checking and tests on the Pi, then pulls the triggering revision, installs dependencies, builds the production bundle, restarts only the existing `fir-saathi` systemd service, and checks that the service is active. The workflow does not receive application secrets from GitHub; the Pi reads its root-owned `/etc/fir-saathi.env` file locally.
 
-In Supabase **Authentication → URL Configuration**, set the Site URL to your final domain, for example `https://fir.example.org`. Add the same origin’s `/reset-password` path to the allowed redirect URLs. Add each development origin separately. This is required for confirmation and password-recovery emails.
+The full setup, Cloudflare Tunnel configuration, firewall guidance, rollback procedure, and secret-handling rules are in [`docs/RASPBERRY_PI_5_HOSTING.md`](docs/RASPBERRY_PI_5_HOSTING.md). Keep the repository-scoped runner private and never grant it blanket passwordless `sudo` access.[5]
 
-## Security notes
+## Security and privacy boundaries
 
-Keep `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, and `FIR_SAATHI_BOOTSTRAP_ADMIN_EMAIL` on the server only. The browser needs only the Supabase URL and publishable key. Review Supabase RLS policies and restrict who can use the administrator account before using the prototype beyond demonstrations. `pnpm test` is intentionally offline and clone-safe; optional provider smoke tests require both `RUN_LIVE_PROVIDER_TESTS=1` and the relevant real server-side credentials.
+Raw voice bytes are sent transiently for transcription and are not persisted by the application after transcription. Browser-session audio preview can remain locally until the session ends. Citizen access uses a separate unguessable capability code; the short public reference alone cannot open or mutate a record. Withdrawal revokes active access and removes the record from normal workspaces while retaining a minimal audit/tombstone boundary. It is not a certified legal-erasure promise.
 
-### Citizen record lifecycle and private codes
+All ordinary application actions preserve a separation between original source, later context, corrections, AI aids, and human edits. The system must never invent facts, infer motive or credibility, decide jurisdiction, recommend charges, verify a complaint, or present an AI output as the citizen’s words.
 
-Each newly created prototype record has a public `FS-…` reference and a separate, browser-session-held private `FSC-…` capability. The server stores only a SHA-256 hash of that capability. A citizen can replace the private code from the status screen; the previous code is revoked immediately and the replacement is returned only once. Citizens can also withdraw the active prototype record. Withdrawal clears the stored capability, blocks all later citizen and constable workflow actions, and redacts the content from normal workspaces while retaining a minimal withdrawal tombstone and audit entry. It is intentionally **not** represented as a real-FIR withdrawal, legal erasure certification, or deletion from every external backup or retention system.
+## Scope and boundaries
 
-Records created before private access-code support cannot be safely reopened because no recoverable capability exists; begin a new intake rather than attempting to restore access using the short public reference alone.
+FIR Saathi is designed for demonstration, evaluation, and controlled self-hosting. It does not provide emergency dispatch, official FIR registration, legal advice, formal records-retention guarantees, biometric identity verification, production-scale abuse prevention, or a validated multilingual transcription benchmark. The right next step is a controlled evaluation with synthetic scenarios and independently reference-checked audio—not a stronger marketing claim.
 
-### Supabase password safeguard status
+## Repository map
 
-The connected project's Supabase Security Advisor currently reports leaked-password protection as disabled. This repository has no supported management API or MCP action that can change that Auth setting. Supabase documents that leaked-password protection is available only on the **Pro plan and above**; it therefore cannot truthfully be marked enabled for the current Free-plan project. If the project is upgraded, an administrator should open **Authentication → Attack Protection** (or the current project Auth settings), enable **Leaked password protection**, and retain strong password-length and character requirements. See [Supabase’s password-security guidance](https://supabase.com/docs/guides/auth/password-security) for the current control location and plan availability.
+| Path | Purpose |
+|---|---|
+| [`client/src/pages/CitizenIntake.tsx`](client/src/pages/CitizenIntake.tsx) | Citizen language choice, voice/text intake, consent, and source review |
+| [`server/drafting.ts`](server/drafting.ts) | Structured drafting prompts, normalisers, source-quote checks, and BNS boundary |
+| [`server/db.ts`](server/db.ts) | Supabase persistence, access capabilities, withdrawal, and audit helpers |
+| [`server/adversarialEval.test.ts`](server/adversarialEval.test.ts) | Deterministic hostile-input invariants |
+| [`server/liveAdversarialEval.ts`](server/liveAdversarialEval.ts) | Opt-in live provider evaluation and result accounting |
+| [`docs/ASR_EVALUATION_PROTOCOL.md`](docs/ASR_EVALUATION_PROTOCOL.md) | Provider-matched transcription evaluation protocol |
+| [`docs/RASPBERRY_PI_5_HOSTING.md`](docs/RASPBERRY_PI_5_HOSTING.md) | Self-hosted Raspberry Pi deployment guide |
+| [`docs/assets/evidence-board.png`](docs/assets/evidence-board.png) | GitHub-ready evidence visual; source layout is in [`docs/assets/evidence-board.svg`](docs/assets/evidence-board.svg) |
 
-## Reproducible deterministic guardrail evaluation
+## References
 
-The repository includes a deterministic, no-network guardrail harness in `server/adversarialEval.test.ts`. It verifies **four post-generation invariants across ten supported scripts**: unsupported workflow fields are discarded, invented source quotes are discarded, under-evidenced catalogue suggestions collapse to `REVIEW`, and non-catalogue BNS codes collapse to `REVIEW`. It also covers delimiter breakout, role-play framing, zero-width obfuscation, a homoglyph variant, and unknown context-key rejection.
-
-This is deliberately **not** presented as a measured live-model prompt-injection pass rate. The harness tests the server’s deterministic output and input boundaries; it does not invoke Groq or establish that every model-level attack will fail. Run it with `pnpm test`.
-
-### Opt-in live-model check
-
-`pnpm eval:live-adversarial` is an explicitly opt-in Groq run (`RUN_LIVE_GROQ_EVAL=1`) that sends ten hostile source statements to the configured drafting model and writes the exact classified outcome to `docs/evaluations/live-groq-adversarial-latest.json`. It is excluded from ordinary tests and deployment gates because it consumes provider quota and provider/model revisions change results.
-
-The current recorded run evaluated **4 of 10** responses as parseable JSON. Of those four, **2 produced an unsafe non-`REVIEW` BNS suggestion from an instruction-only source (50%)**; the deterministic normaliser mitigated both, leaving **0 unmitigated evaluated responses**. The other **6 of 10** responses were unusable JSON and are explicitly not counted as “blocked.” This is a small, time-stamped observation, not a stability claim or a provider benchmark; rerun it after changing the model, prompt, schema, or normalisers.
-
-## Transcription confidence and language-quality evidence
-
-`avg_logprob` metadata is retained with transcript segments, but FIR Saathi no longer uses the previous unvalidated `-0.85` cutoff to colour a citizen’s wording. Amber segment highlighting stays disabled until a provider-matched calibration achieves the documented precision requirement on at least 100 independently reference-checked segments. The repository contains an opt-in calculation command and exact input contract in [`docs/evaluations/REFERENCE_TRANSCRIPT_FORMAT.md`](docs/evaluations/REFERENCE_TRANSCRIPT_FORMAT.md).
-
-The project also does **not** claim that Malayalam, Punjabi, or any other supported language exceeds a particular WER. Published benchmarks for another model or corpus cannot establish the deployed Groq provider’s performance. The evidence boundary, candidate reference corpora, and activation criteria are documented in [`docs/ASR_EVALUATION_PROTOCOL.md`](docs/ASR_EVALUATION_PROTOCOL.md).
+[1]: docs/evaluations/live-groq-adversarial-latest.json "Recorded live Groq adversarial evaluation"
+[2]: docs/ASR_EVALUATION_PROTOCOL.md "FIR Saathi ASR evaluation protocol"
+[3]: server/adversarialEval.test.ts "Deterministic adversarial evaluation invariants"
+[4]: https://supabase.com/docs/guides/database/secure-data "Supabase: Securing your data"
+[5]: docs/RASPBERRY_PI_5_HOSTING.md "FIR Saathi Raspberry Pi 5 hosting guide"

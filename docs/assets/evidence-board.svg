@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">FIR Saathi evidence board</title>
+  <desc id="desc">A source-preserving intake flow from citizen words to human constable review, with honest evidence cards for time saved, missing information, transcription quality, and AI guardrails.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07182b"/>
+      <stop offset="1" stop-color="#12375a"/>
+    </linearGradient>
+    <linearGradient id="ember" x1="0" x2="1">
+      <stop offset="0" stop-color="#f48a51"/>
+      <stop offset="1" stop-color="#ffb173"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#020b16" flood-opacity=".25"/>
+    </filter>
+    <style>
+      .sans { font-family: "Noto Sans", "DejaVu Sans", Arial, sans-serif; }
+      .serif { font-family: "Noto Serif", "DejaVu Serif", Georgia, serif; }
+      .muted { fill: #b8c9d8; }
+      .light { fill: #f8fbfd; }
+      .ember { fill: #ffb173; }
+      .small { font-size: 16px; }
+      .label { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+    </style>
+  </defs>
+  <rect width="1200" height="760" rx="28" fill="url(#bg)"/>
+  <circle cx="1110" cy="-10" r="240" fill="#f48a51" opacity=".1"/>
+  <circle cx="30" cy="720" r="190" fill="#2f83b5" opacity=".1"/>
+
+  <g class="sans">
+    <text x="70" y="72" class="label ember">FIR SAATHI · EVIDENCE BOARD</text>
+    <text x="70" y="130" class="serif light" font-size="48" font-weight="700">From citizen words</text>
+    <text x="70" y="183" class="serif ember" font-size="48" font-weight="700">to review-ready signal.</text>
+    <text x="70" y="224" class="muted" font-size="19">A multilingual intake layer that preserves the source, surfaces only useful gaps,</text>
+    <text x="70" y="253" class="muted" font-size="19">and keeps the final decision with a human constable.</text>
+
+    <g transform="translate(70,292)">
+      <rect width="1060" height="104" rx="18" fill="#ffffff" fill-opacity=".08" stroke="#ffffff" stroke-opacity=".16"/>
+      <circle cx="45" cy="52" r="22" fill="url(#ember)"/>
+      <path d="M35 52c6-14 14-14 20 0s14 14 20 0" fill="none" stroke="#07182b" stroke-width="4" stroke-linecap="round"/>
+      <text x="86" y="40" class="light" font-size="18" font-weight="800">THE PRODUCT PROMISE</text>
+      <text x="86" y="69" class="muted" font-size="17">The source statement stays separate from AI fields, citizen context, corrections, and officer edits.</text>
+      <text x="86" y="92" class="muted" font-size="17">The system assists with structure and uncertainty; people retain authority.</text>
+    </g>
+
+    <g transform="translate(70,430)">
+      <g filter="url(#shadow)">
+        <rect width="250" height="168" rx="18" fill="#fffaf3"/>
+        <rect x="275" width="250" height="168" rx="18" fill="#fffaf3"/>
+        <rect x="550" width="250" height="168" rx="18" fill="#fffaf3"/>
+        <rect x="825" width="235" height="168" rx="18" fill="#fffaf3"/>
+      </g>
+
+      <g transform="translate(24,26)">
+        <text class="label" fill="#a83d10">CONSTABLE TIME</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">Not yet</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">benchmarked</text>
+        <text y="112" fill="#526273" font-size="14">Pilot metric: time to</text>
+        <text y="132" fill="#526273" font-size="14">review-ready, baseline vs.</text>
+        <text y="152" fill="#526273" font-size="14">source-preserving intake.</text>
+      </g>
+      <g transform="translate(299,26)">
+        <text class="label" fill="#a83d10">MISSING INFO</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">Not yet</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">benchmarked</text>
+        <text y="112" fill="#526273" font-size="14">One optional, high-value</text>
+        <text y="132" fill="#526273" font-size="14">question at a time; compare</text>
+        <text y="152" fill="#526273" font-size="14">detail coverage to baseline.</text>
+      </g>
+      <g transform="translate(574,26)">
+        <text class="label" fill="#a83d10">TRANSCRIPTION</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">3 tested</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">7 experimental</text>
+        <text y="112" fill="#526273" font-size="14">No model-matched WER</text>
+        <text y="132" fill="#526273" font-size="14">claim yet. Quality labels</text>
+        <text y="152" fill="#526273" font-size="14">stay evidence-gated.</text>
+      </g>
+      <g transform="translate(849,26)">
+        <text class="label" fill="#a83d10">AI BOUNDARY</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">0</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">unmitigated</text>
+        <text y="112" fill="#526273" font-size="14">2 unsafe BNS attempts</text>
+        <text y="132" fill="#526273" font-size="14">caught; 6 malformed</text>
+        <text y="152" fill="#526273" font-size="14">outputs not counted.</text>
+      </g>
+    </g>
+
+    <g transform="translate(70,642)">
+      <circle cx="8" cy="8" r="8" fill="#f48a51"/>
+      <text x="28" y="14" class="muted" font-size="15">10 explicit language choices</text>
+      <circle cx="250" cy="8" r="8" fill="#f48a51"/>
+      <text x="270" y="14" class="muted" font-size="15">4 deterministic invariants</text>
+      <circle cx="510" cy="8" r="8" fill="#f48a51"/>
+      <text x="530" y="14" class="muted" font-size="15">Human verification required</text>
+      <text x="1060" y="14" text-anchor="end" class="ember" font-size="15" font-weight="800">Prototype · not an official FIR service</text>
+    </g>
+  </g>
+</svg>
