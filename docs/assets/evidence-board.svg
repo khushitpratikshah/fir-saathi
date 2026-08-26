@@ -53,11 +53,11 @@
 
       <g transform="translate(24,26)">
         <text class="label" fill="#a83d10">CONSTABLE TIME</text>
-        <text y="47" fill="#102643" font-size="30" font-weight="900">Not yet</text>
-        <text y="80" fill="#102643" font-size="30" font-weight="900">benchmarked</text>
-        <text y="112" fill="#526273" font-size="14">Pilot metric: time to</text>
-        <text y="132" fill="#526273" font-size="14">review-ready, baseline vs.</text>
-        <text y="152" fill="#526273" font-size="14">source-preserving intake.</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">5–10 min</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">estimate</text>
+        <text y="112" fill="#526273" font-size="14">10–20% of a 54.63-min</text>
+        <text y="132" fill="#526273" font-size="14">external baseline; not</text>
+        <text y="152" fill="#526273" font-size="14">field-measured.</text>
       </g>
       <g transform="translate(299,26)">
         <text class="label" fill="#a83d10">MISSING INFO</text>

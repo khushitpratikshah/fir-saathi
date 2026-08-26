@@ -47,12 +47,12 @@ Here are the four questions a serious evaluator should ask. The numbers below di
 
 | Question | What we can defend today | Status |
 |---|---|---|
-| **How much time does FIR Saathi save a constable?** | The system is designed to reduce repeated intake-and-structuring work, but no valid baseline-vs-FIR-Saathi time study has been run yet. The correct endpoint is time from source-record arrival to review-ready human action. | **Pilot measurement pending** |
+| **How much time does FIR Saathi save a constable?** | **Estimated planning range: 5–10 minutes per eligible intake**, not a measured result. This models recovering 10–20% of a 54.63-minute police report-writing baseline from an independent study; FIR Saathi addresses intake structuring and clarification, not the officer’s entire report. The same study found no significant speed effect from AI report-writing alone, so a local pilot is still required.[6] | **Cited estimate; pilot validation pending** |
 | **How much does source-preserving intake reduce missing information?** | The product checks fixed high-value categories and asks one optional follow-up at a time, without merging answers into the source. The reduction in missing-detail rate has not yet been measured against a baseline. | **Pilot measurement pending** |
 | **How well does transcription work by language?** | English, Hindi, and Gujarati have been personally tested qualitatively. Marathi, Bengali, Tamil, Telugu, Kannada, Malayalam, and Punjabi are available but marked **Experimental**. No model-matched WER claim is published. | **Language evidence in progress** |
 | **How often does AI attempt unsupported information, and how often is it caught?** | In the recorded ten-fixture hostile run, 4 responses were parseable; 2 of those attempted unsafe non-`REVIEW` BNS output, and the deterministic normaliser mitigated both. That leaves **0 unmitigated evaluated responses**. Six malformed responses are not counted as blocked. | **Observed snapshot, not a benchmark** |
 
-> **Why show “not yet benchmarked”?** Because a made-up time-saved number or language WER would be less useful than an honest measurement plan. FIR Saathi is ready to be evaluated; it is not claiming that a prototype snapshot is a field study.
+> **Why label this as an estimate?** Because the 5–10 minute range is a cited planning hypothesis, not a made-up “impact statistic.” The independent study that supplies the external baseline found no significant speed effect from AI report-writing alone. FIR Saathi is ready to be evaluated; it is not claiming that a prototype snapshot is a field study.
 
 ## What is already working
 
@@ -71,11 +71,19 @@ FIR Saathi is not just a landing-page concept. The repository contains a complet
 
 ## Evidence, not marketing theatre
 
-### 1. Constable time saved: the measurement we still need
+### 1. Constable time saved: a cited planning estimate, not a field result
 
-The workflow is deliberately shaped around a plausible time-saving mechanism: the citizen’s source stays intact, the system surfaces exact excerpts instead of producing a polished invented narrative, and only high-value missing details are offered as optional follow-ups. That should reduce the reviewer’s need to re-read, re-structure, and re-ask basic questions—but the repository does not contain a defensible time-saved benchmark yet.
+The workflow is deliberately shaped around a plausible time-saving mechanism: the citizen’s source stays intact, the system surfaces exact excerpts instead of producing a polished invented narrative, and only high-value missing details are offered as optional follow-ups. That may reduce the reviewer’s need to re-read, re-structure, and re-ask basic questions. The README now uses a transparent **5–10 minute per eligible intake planning estimate**, calculated as follows:
 
-A credible pilot would use matched synthetic scenarios and the same reviewers in two conditions: a baseline intake and FIR Saathi. It should report median and percentile time to review-ready action, the number of clarification loops, and source-fidelity errors. Until that is run, the README intentionally says **measurement pending**, not “saves X minutes.”
+| Calculation step | Value | Interpretation |
+|---|---:|---|
+| External report-writing baseline | 54.63 minutes | Historical mean reported for one police department in an independent study of police report duration [6] |
+| FIR Saathi planning assumption | 10–20% of baseline | A deliberately bounded scenario for the narrower intake-structuring and clarification work FIR Saathi targets; this percentage is an internal hypothesis, not a published FIR Saathi result |
+| Estimated potential time recovered | 5.46–10.93 minutes | Rounded and presented as **5–10 minutes per eligible intake** |
+
+This estimate must not be read as “FIR Saathi saves ten minutes.” The cited randomized trial found that a commercial AI report-writing tool did **not** significantly reduce report-writing duration, so external evidence does not validate our estimate. The 5–10 minute range is a hypothesis for a controlled local pilot, not a field measurement, causal claim, or guarantee. The U.S. DOJ COPS Office also describes AI-assisted report workflows as requiring officer review, missing-detail completion, manual editing, and sign-off.[7]
+
+A credible pilot would use matched synthetic scenarios and the same reviewers in two conditions: a baseline intake and FIR Saathi. It should report median and percentile time from source-record arrival to review-ready human action, the number of clarification loops, and source-fidelity errors. The pilot should be able to disprove the estimate as easily as confirm it.
 
 ### 2. Missing information: measure coverage without corrupting the source
 
@@ -203,3 +211,5 @@ FIR Saathi is designed for demonstration, evaluation, and controlled self-hostin
 [3]: server/adversarialEval.test.ts "Deterministic adversarial evaluation invariants"
 [4]: https://supabase.com/docs/guides/database/secure-data "Supabase: Securing your data"
 [5]: docs/RASPBERRY_PI_5_HOSTING.md "FIR Saathi Raspberry Pi 5 hosting guide"
+[6]: https://www.crimrxiv.com/pub/nxbmzp2j/release/1 "Adams et al., No Man’s Hand: Artificial Intelligence Does Not Improve Police Report Writing Speed"
+[7]: https://cops.usdoj.gov/html/dispatch/01-2025/ai_reports.html "U.S. DOJ COPS Office, Using AI to Write Police Reports"
