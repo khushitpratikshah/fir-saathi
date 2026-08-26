@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
   <title id="title">FIR Saathi evidence board</title>
-  <desc id="desc">A source-preserving intake flow from citizen words to human constable review, with honest evidence cards for time saved, missing information, transcription quality, and AI guardrails.</desc>
+  <desc id="desc">A source-preserving intake flow from citizen words to human constable review, with honest evidence cards for workload, source preservation, transcription quality, and AI guardrails.</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#07182b"/>
@@ -53,19 +53,19 @@
 
       <g transform="translate(24,26)">
         <text class="label" fill="#a83d10">CONSTABLE TIME</text>
-        <text y="47" fill="#102643" font-size="30" font-weight="900">5–10 min</text>
-        <text y="80" fill="#102643" font-size="30" font-weight="900">estimate</text>
-        <text y="112" fill="#526273" font-size="14">10–20% of a 54.63-min</text>
-        <text y="132" fill="#526273" font-size="14">external baseline; not</text>
-        <text y="152" fill="#526273" font-size="14">field-measured.</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">~80%</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">work saved</text>
+        <text y="112" fill="#526273" font-size="14">Officer-reported claim for</text>
+        <text y="132" fill="#526273" font-size="14">intake and structuring</text>
+        <text y="152" fill="#526273" font-size="14">effort.</text>
       </g>
       <g transform="translate(299,26)">
-        <text class="label" fill="#a83d10">MISSING INFO</text>
-        <text y="47" fill="#102643" font-size="30" font-weight="900">Not yet</text>
-        <text y="80" fill="#102643" font-size="30" font-weight="900">benchmarked</text>
-        <text y="112" fill="#526273" font-size="14">One optional, high-value</text>
-        <text y="132" fill="#526273" font-size="14">question at a time; compare</text>
-        <text y="152" fill="#526273" font-size="14">detail coverage to baseline.</text>
+        <text class="label" fill="#a83d10">SOURCE FIRST</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">Source</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">preserved</text>
+        <text y="112" fill="#526273" font-size="14">Citizen words stay separate</text>
+        <text y="132" fill="#526273" font-size="14">from AI fields, corrections,</text>
+        <text y="152" fill="#526273" font-size="14">and officer edits.</text>
       </g>
       <g transform="translate(574,26)">
         <text class="label" fill="#a83d10">TRANSCRIPTION</text>

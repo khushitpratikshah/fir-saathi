@@ -47,12 +47,11 @@ Here are the four questions a serious evaluator should ask. The numbers below di
 
 | Question | What we can defend today | Status |
 |---|---|---|
-| **How much time does FIR Saathi save a constable?** | **Estimated planning range: 5–10 minutes per eligible intake**, not a measured result. This models recovering 10–20% of a 54.63-minute police report-writing baseline from an independent study; FIR Saathi addresses intake structuring and clarification, not the officer’s entire report. The same study found no significant speed effect from AI report-writing alone, so a local pilot is still required.[6] | **Cited estimate; pilot validation pending** |
-| **How much does source-preserving intake reduce missing information?** | The product checks fixed high-value categories and asks one optional follow-up at a time, without merging answers into the source. The reduction in missing-detail rate has not yet been measured against a baseline. | **Pilot measurement pending** |
+| **How much time does FIR Saathi save a constable?** | An **officer-reported claim says roughly 80% of the intake-and-structuring work can be saved**. This is an attributed claim, not an independently measured FIR Saathi result; the README keeps the underlying study and conservative planning model below for context. | **Officer-reported claim; independently unverified** |
 | **How well does transcription work by language?** | English, Hindi, and Gujarati have been personally tested qualitatively. Marathi, Bengali, Tamil, Telugu, Kannada, Malayalam, and Punjabi are available but marked **Experimental**. No model-matched WER claim is published. | **Language evidence in progress** |
 | **How often does AI attempt unsupported information, and how often is it caught?** | In the recorded ten-fixture hostile run, 4 responses were parseable; 2 of those attempted unsafe non-`REVIEW` BNS output, and the deterministic normaliser mitigated both. That leaves **0 unmitigated evaluated responses**. Six malformed responses are not counted as blocked. | **Observed snapshot, not a benchmark** |
 
-> **Why label this as an estimate?** Because the 5–10 minute range is a cited planning hypothesis, not a made-up “impact statistic.” The independent study that supplies the external baseline found no significant speed effect from AI report-writing alone. FIR Saathi is ready to be evaluated; it is not claiming that a prototype snapshot is a field study.
+> **Why show both figures?** The roughly 80% number is an officer-reported claim about intake-and-structuring effort. The 5–10 minute range below is a separate, conservative planning model based on an external report-writing baseline. Neither is a measured FIR Saathi impact result; both should be tested in a local pilot.
 
 ## What is already working
 
@@ -85,18 +84,7 @@ This estimate must not be read as “FIR Saathi saves ten minutes.” The cited 
 
 A credible pilot would use matched synthetic scenarios and the same reviewers in two conditions: a baseline intake and FIR Saathi. It should report median and percentile time from source-record arrival to review-ready human action, the number of clarification loops, and source-fidelity errors. The pilot should be able to disprove the estimate as easily as confirm it.
 
-### 2. Missing information: measure coverage without corrupting the source
-
-FIR Saathi’s current mechanism is implemented, not merely promised. It checks a fixed set of categories, avoids asking a question when the source or separate citizen context already covers it, and stores context separately rather than silently enriching the citizen’s statement. The relevant future metric is the change in independently coded detail coverage between a baseline intake and the source-preserving flow.
-
-| Proposed pilot metric | Definition |
-|---|---|
-| Detail coverage | Percentage of independently judged relevant categories with usable information in the record |
-| Clarification efficiency | Number of follow-up questions needed before a reviewer can begin |
-| Source fidelity | Count of cases where a structured field or correction cannot be traced to source/context provenance |
-| Citizen burden | Completion rate, skip rate, and time spent on optional follow-ups |
-
-### 3. Transcription quality by language
+### 2. Transcription quality by language
 
 The app preserves provider timestamps and optional `avg_logprob` metadata, but it does not colour a citizen’s wording using an uncalibrated magic threshold. A language-specific WER claim requires reference-checked audio that matches the deployed provider, model, language, and intended audio domain. The current language status is therefore explicit and conservative.
 
@@ -115,7 +103,7 @@ The app preserves provider timestamps and optional `avg_logprob` metadata, but i
 
 The repository includes a calibration workflow that requires at least 100 independently reference-checked segments before confidence highlighting can be activated. It also documents the input format, corpus requirements, and the rule that results from another model or corpus cannot be presented as evidence for this deployment.[2]
 
-### 4. Unsupported AI output and deterministic catching
+### 3. Unsupported AI output and deterministic catching
 
 The live adversarial evaluator is intentionally small and provider-dependent, but it is concrete. It sent ten hostile source statements to the configured drafting model. The saved run recorded four parseable model responses, two unsafe non-`REVIEW` BNS suggestions from instruction-only sources, two deterministic mitigations, zero unmitigated evaluated responses, and six unusable JSON responses that were **not** counted as successful blocks.[1]
 
@@ -190,6 +178,19 @@ All ordinary application actions preserve a separation between original source, 
 ## Scope and boundaries
 
 FIR Saathi is designed for demonstration, evaluation, and controlled self-hosting. It does not provide emergency dispatch, official FIR registration, legal advice, formal records-retention guarantees, biometric identity verification, production-scale abuse prevention, or a validated multilingual transcription benchmark. The right next step is a controlled evaluation with synthetic scenarios and independently reference-checked audio—not a stronger marketing claim.
+
+## Missing-information reduction: keep the question, measure it at the end
+
+FIR Saathi’s mechanism is implemented: it checks fixed high-value categories, avoids asking a question when the source or separate citizen context already covers it, and stores context separately rather than silently enriching the citizen’s statement. The reduction in missing-detail rate has **not** yet been measured against a baseline, so this belongs at the end of the README rather than in the hero pitch.
+
+A credible pilot should independently code matched synthetic scenarios in two conditions—baseline intake and FIR Saathi—and report detail coverage, clarification loops, source-fidelity errors, and citizen burden. This section is intentionally last because it is a measurement question, not a headline claim.
+
+| Proposed pilot metric | Definition |
+|---|---|
+| Detail coverage | Percentage of independently judged relevant categories with usable information in the record |
+| Clarification efficiency | Number of follow-up questions needed before a reviewer can begin |
+| Source fidelity | Count of cases where a structured field or correction cannot be traced to source/context provenance |
+| Citizen burden | Completion rate, skip rate, and time spent on optional follow-ups |
 
 ## Repository map
 

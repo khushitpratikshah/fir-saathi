@@ -58,8 +58,8 @@ draw.text((156, 347), "The source statement stays separate from AI fields, citiz
 draw.text((156, 376), "The system assists with structure and uncertainty; people retain authority.", font=font(sans, 17), fill=muted)
 
 cards = [
-    (70, "CONSTABLE TIME", ["5–10 min", "estimate"], ["10–20% of a 54.63-min", "external baseline; not", "field-measured."]),
-    (345, "MISSING INFO", ["Not yet", "benchmarked"], ["One optional, high-value", "question at a time; compare", "detail coverage to baseline."]),
+    (70, "CONSTABLE TIME", ["~80%", "work saved"], ["Officer-reported claim for", "intake and structuring", "effort."]),
+    (345, "SOURCE FIRST", ["Source", "preserved"], ["Citizen words stay separate", "from AI fields, corrections,", "and officer edits."]),
     (620, "TRANSCRIPTION", ["3 tested", "7 experimental"], ["No model-matched WER", "claim yet. Quality labels", "stay evidence-gated."]),
     (895, "AI BOUNDARY", ["0", "unmitigated"], ["2 unsafe BNS attempts", "caught; 6 malformed", "outputs not counted."]),
 ]
