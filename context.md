@@ -80,7 +80,7 @@ Each stored transcript segment may include Groq timestamp and `avg_logprob` meta
 
 The repository now contains an evidence-gated calibration workflow. Before amber segment highlighting can be activated, the project requires at least 100 independently reference-checked segments from the same provider/model, a documented corpus and normalisation method, and reported precision/recall. The tool then selects only a threshold meeting the configured precision requirement; a maintainer must review and explicitly activate it.
 
-FIR Saathi does not claim that Malayalam, Punjabi, or any other supported language has a particular word-error rate. A result from a different provider, model, corpus, or audio domain is not treated as evidence for the deployed Groq endpoint. Candidate reference sources and the required evaluation protocol are documented in `docs/ASR_EVALUATION_PROTOCOL.md` and `docs/evaluations/REFERENCE_TRANSCRIPT_FORMAT.md`.
+FIR Saathi does not claim that Malayalam, Punjabi, or any other supported language has a particular word-error rate. A result from a different provider, model, corpus, or audio domain is not treated as evidence for the deployed Groq endpoint. In the citizen language picker, Marathi, Bengali, Tamil, Telugu, Kannada, Malayalam, and Punjabi are visibly tagged **Experimental** because they have not yet been personally verified for this prototype; the tag is a product-status disclosure, not a measured transcription-quality claim. Candidate reference sources and the required evaluation protocol are documented in `docs/ASR_EVALUATION_PROTOCOL.md` and `docs/evaluations/REFERENCE_TRANSCRIPT_FORMAT.md`.
 
 ## 6. Safety evaluation evidence
 
