@@ -185,3 +185,4 @@
 - [x] Add confidence-threshold calibration inputs and precision/recall reporting that require real reference transcripts.
 - [x] Mark language-specific transcription risk only where an identified evaluation corpus supports the stated WER threshold.
 - [x] Create a refreshed standalone project context file covering the current FIR Saathi implementation and evidence boundaries.
+- [x] Create a detailed continuation briefing covering project history, decisions, implementation, deployment, artifacts, and open questions.
