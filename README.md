@@ -33,13 +33,14 @@ That is the product in one sentence: **less translation between a citizen’s ac
 | The gaps worth asking about | One optional, high-value follow-up at a time; citizens can skip |
 | The human decision boundary | Constable review, corrections with reasons, audit history, and no automatic FIR decision |
 
-<div align="center">
+## Image gallery
 
-![FIR Saathi language picker](docs/assets/intake-language-picker.webp)
+The gallery below uses repository-hosted PNG assets prepared at an exact 3:2 ratio and kept well below the 5 MB per-image limit.
 
-<sub>The real citizen intake screen: English, Hindi, and Gujarati are personally tested; the remaining seven options are explicitly marked Experimental.</sub>
-
-</div>
+| Evidence board | Citizen intake |
+|---|---|
+| ![FIR Saathi evidence board](docs/assets/gallery-evidence-board.png) | ![FIR Saathi citizen intake](docs/assets/gallery-intake-language-picker.png) |
+| The product promise, human-review boundary, and current evidence signals. | The real intake screen: ten language choices, source-first wording, and Experimental labels for the seven personally unverified options. |
 
 ## The honest scoreboard
 
@@ -204,6 +205,8 @@ A credible pilot should independently code matched synthetic scenarios in two co
 | [`docs/ASR_EVALUATION_PROTOCOL.md`](docs/ASR_EVALUATION_PROTOCOL.md) | Provider-matched transcription evaluation protocol |
 | [`docs/RASPBERRY_PI_5_HOSTING.md`](docs/RASPBERRY_PI_5_HOSTING.md) | Self-hosted Raspberry Pi deployment guide |
 | [`docs/assets/evidence-board.png`](docs/assets/evidence-board.png) | GitHub-ready evidence visual; source layout is in [`docs/assets/evidence-board.svg`](docs/assets/evidence-board.svg) |
+| [`docs/assets/gallery-evidence-board.png`](docs/assets/gallery-evidence-board.png) | 3:2 PNG gallery copy of the evidence board |
+| [`docs/assets/gallery-intake-language-picker.png`](docs/assets/gallery-intake-language-picker.png) | 3:2 PNG gallery copy of the verified intake screenshot |
 
 ## References
 
