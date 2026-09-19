@@ -47,4 +47,6 @@ jobs:
           printf 'Deploying trusted main revision %s\n' "$GITHUB_SHA"
 
       - name: Pull, build, and restart FIR Saathi
-        run: /srv/fir-saathi/app/bin/deploy-from-main.sh "$GITHUB_SHA"
+        # Invoke through bash so a checkout/filesystem that loses the executable
+        # bit still fails only on the script's own safety checks, not at exec(2).
+        run: bash /srv/fir-saathi/app/bin/deploy-from-main.sh "$GITHUB_SHA"
