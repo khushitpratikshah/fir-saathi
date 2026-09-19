@@ -52,4 +52,7 @@ jobs:
         # the dedicated service user required by the script's safety checks.
         # The script itself deploys into /srv/fir-saathi/app and enforces the
         # revision, environment, build, and service checks.
-        run: sudo -u firsaathi -- bash "$GITHUB_WORKSPACE/bin/deploy-from-main.sh" "$GITHUB_SHA"
+        # The runner can read the workspace, while firsaathi owns the target
+        # checkout. Pipe the script so firsaathi need not traverse the runner's
+        # workspace directories to read it.
+        run: sudo -u firsaathi -- bash -s "$GITHUB_SHA" < "$GITHUB_WORKSPACE/bin/deploy-from-main.sh"
