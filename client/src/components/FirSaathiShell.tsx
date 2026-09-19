@@ -62,7 +62,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
             <span className={`brand-mark grid h-9 w-9 place-items-center rounded-xl p-1.5 shadow-[0_7px_18px_rgba(198,78,25,0.18)] ${dark ? "bg-white/95" : "bg-[#fff7f1]"}`}><FirSaathiMark className="h-full w-full" /></span>
             <span className="leading-tight">
               <span className="block text-sm font-bold tracking-[-0.02em]">FIR Saathi</span>
-              <span className={`brand-kicker block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>{showcase ? "Intel AI Impact Fest" : "Citizen complaint workspace"}</span>
+              <span className={`brand-kicker block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>{showcase ? "Hackathon showcase" : "Citizen complaint workspace"}</span>
             </span>
           </Link>
 

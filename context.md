@@ -1,7 +1,7 @@
 # FIR Saathi — Current Project Context
 
 **Project:** FIR Saathi  
-**Purpose:** A multilingual, voice-first, source-preserving complaint-intake and human constable-review prototype for the Intel AI Impact Fest.  
+**Purpose:** A multilingual, voice-first, source-preserving complaint-intake and human constable-review prototype for the Hackathon showcase.
 **Repository:** [github.com/khushitpratikshah/fir-saathi](https://github.com/khushitpratikshah/fir-saathi)  
 **Current framing:** This is a self-hostable demonstration prototype. It is **not** an official police portal, emergency service, FIR-registration system, legal-advice tool, or automated decision-maker.
 

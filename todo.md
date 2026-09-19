@@ -31,12 +31,12 @@
 - [x] Document environment variables and self-hosting requirements for external deployment.
 - [x] Add an accessible animated Groq transcription progress state with elapsed-time feedback.
 - [x] Add specific, actionable Groq transcription error messages with retry and text-entry recovery actions.
-- [x] Reframe the landing page and shared navigation around the Intel AI Impact Fest demo story and AI-safety proof points.
+- [x] Reframe the landing page and shared navigation around the Hackathon showcase demo story and AI-safety proof points.
 - [x] Add expressive animated waveform, live transcript, and AI-analysis feedback to the real citizen intake journey.
 - [x] Add and validate high-impact multilingual guided demo states that work without external audio or AI-provider availability.
 - [x] Elevate the constable workspace with an impact dashboard, explainable AI decision trail, and demo-ready interactions.
-- [x] Validate the end-to-end showcase flow at desktop and mobile sizes, then checkpoint the Impact Fest demonstration update.
-- [x] Reframe the landing page as a promotional FIR Saathi / Intel AI Impact Fest project presentation with direct entry into the real application.
+- [x] Validate the end-to-end showcase flow at desktop and mobile sizes, then checkpoint the hackathon showcase demonstration update.
+- [x] Reframe the landing page as a promotional FIR Saathi / Hackathon showcase project presentation with direct entry into the real application.
 - [x] Remove guided-demo framing and automatic demonstration behaviour from the citizen, confirmation, and constable app routes.
 - [x] Preserve and strengthen the live data-backed intake, AI-processing, confirmation, correction, audit, and verification flows.
 - [x] Add immersive but accessible motion to real application transitions, source capture, AI processing, and review states.

@@ -4,7 +4,7 @@
 
 ## 1. Executive state
 
-FIR Saathi is a **self-hostable, multilingual, voice-first complaint-intake and human constable-review prototype** created for the Intel AI Impact Fest. Its central product promise is that the system should preserve a citizen’s words while making review easier; AI assists with structure, uncertainty, and source-grounded review aids, while citizens and constables retain decision authority.
+FIR Saathi is a **self-hostable, multilingual, voice-first complaint-intake and human constable-review prototype** created for the Hackathon showcase. Its central product promise is that the system should preserve a citizen’s words while making review easier; AI assists with structure, uncertainty, and source-grounded review aids, while citizens and constables retain decision authority.
 
 The repository is currently **public** at [github.com/khushitpratikshah/fir-saathi](https://github.com/khushitpratikshah/fir-saathi). The current deployed code is on `main`; the prior committed release revision before this briefing was `07265c1`, and the Raspberry Pi deployment run for that revision completed successfully. The latest saved project checkpoint was `manus-webdev://07265c1a`.
 
