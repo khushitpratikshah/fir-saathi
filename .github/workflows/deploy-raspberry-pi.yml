@@ -48,7 +48,8 @@ jobs:
           printf 'Deploying trusted main revision %s\n' "$GITHUB_SHA"
 
       - name: Pull, build, and restart FIR Saathi
-        # Use the readable, repository-controlled script from this checkout.
-        # The script itself deploys into /srv/fir-saathi/app and enforces all
-        # identity, revision, build, environment, and service checks.
-        run: bash "$GITHUB_WORKSPACE/bin/deploy-from-main.sh" "$GITHUB_SHA"
+        # Use the readable, repository-controlled script from this checkout as
+        # the dedicated service user required by the script's safety checks.
+        # The script itself deploys into /srv/fir-saathi/app and enforces the
+        # revision, environment, build, and service checks.
+        run: sudo -u firsaathi -- bash "$GITHUB_WORKSPACE/bin/deploy-from-main.sh" "$GITHUB_SHA"
