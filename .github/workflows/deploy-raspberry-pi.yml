@@ -41,12 +41,14 @@ jobs:
     needs: quality
     timeout-minutes: 20
     steps:
+      - uses: actions/checkout@v4
       - name: Confirm trusted deployment revision
         run: |
           test -n "$GITHUB_SHA"
           printf 'Deploying trusted main revision %s\n' "$GITHUB_SHA"
 
       - name: Pull, build, and restart FIR Saathi
-        # Invoke through bash so a checkout/filesystem that loses the executable
-        # bit still fails only on the script's own safety checks, not at exec(2).
-        run: bash /srv/fir-saathi/app/bin/deploy-from-main.sh "$GITHUB_SHA"
+        # Use the readable, repository-controlled script from this checkout.
+        # The script itself deploys into /srv/fir-saathi/app and enforces all
+        # identity, revision, build, environment, and service checks.
+        run: bash "$GITHUB_WORKSPACE/bin/deploy-from-main.sh" "$GITHUB_SHA"
