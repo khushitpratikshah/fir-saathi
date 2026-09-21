@@ -164,6 +164,19 @@ pnpm dev
 
 For a production build, use `pnpm build` followed by `pnpm start`. The browser receives only the public Supabase URL and publishable key; the Supabase service-role key and Groq key stay server-side.[4]
 
+## Evaluator fast path: synthetic reviewer account
+
+The live deployment includes a **synthetic, constable-only demo account** and one harmless fictional case so evaluators can open the human-review workspace without creating an account or submitting a real complaint. Use the reviewer entry point at [`https://fir.khushit.com/officer`](https://fir.khushit.com/officer):
+
+| Demo access | Value |
+|---|---|
+| Reviewer email | `demo.reviewer@fir-saathi.example` |
+| Reviewer password | `Demo-DHesmjyssABzYJtU1X-Saathi!` |
+| Sample case | [`FS-DEMO1KYC`](https://fir.khushit.com/officer/FS-DEMO1KYC) |
+| Sample citizen key | `FSC-4EAE19860BAFE381477347A01A5D6FE410D3DD68` |
+
+The sample case contains fictional English text about a phone snatching, is marked `ready_for_review`, and includes source-linked structured fields plus a short audit trail. The `FSC-…` key is included only to demonstrate the separate citizen-capability path; it is not needed to open the case from the constable workspace. These credentials are intentionally synthetic and restricted to the demo environment. Do not reuse them for production data, personal accounts, or real complaints.
+
 ## Raspberry Pi deployment
 
 The repository includes a guarded GitHub Actions workflow for a repository-scoped Linux/ARM64 self-hosted runner. A push to `main` runs type checking and tests on the Pi, then pulls the triggering revision, installs dependencies, builds the production bundle, restarts only the existing `fir-saathi` systemd service, and checks that the service is active. The workflow does not receive application secrets from GitHub; the Pi reads its root-owned `/etc/fir-saathi.env` file locally.
