@@ -25,6 +25,7 @@ gsap.registerPlugin(ScrollTrigger);
 export default function FirSaathiShell({ children, dark = false, compact = false, showcase = false, officerTheme }: ShellProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const isSyntheticDemo = user?.email?.toLowerCase() === "demo.reviewer@fir-saathi.example";
   const items = user?.role === "admin" ? [...navItems, { href: "/admin", label: "Admin" }] : navItems;
   const shellRef = useRef<HTMLDivElement | null>(null);
 
@@ -62,7 +63,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
             <span className={`brand-mark grid h-9 w-9 place-items-center rounded-xl p-1.5 shadow-[0_7px_18px_rgba(198,78,25,0.18)] ${dark ? "bg-white/95" : "bg-[#fff7f1]"}`}><FirSaathiMark className="h-full w-full" /></span>
             <span className="leading-tight">
               <span className="block text-sm font-bold tracking-[-0.02em]">FIR Saathi</span>
-              <span className={`brand-kicker block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>{showcase ? "Hackathon showcase" : "Citizen complaint workspace"}</span>
+              <span className={`brand-kicker block text-[10px] font-semibold uppercase tracking-[0.16em] ${dark ? "text-slate-400" : "text-slate-500"}`}>{isSyntheticDemo ? "Read-only synthetic demo" : showcase ? "Hackathon showcase" : "Citizen complaint workspace"}</span>
             </span>
           </Link>
 
@@ -99,6 +100,7 @@ export default function FirSaathiShell({ children, dark = false, compact = false
           </div>
         </nav>
       </header>
+      {isSyntheticDemo && <div className="border-b border-amber-200 bg-amber-50 px-5 py-2.5 text-center text-xs font-semibold text-amber-900">Synthetic evaluator mode: one fictional case is visible; review actions are simulated and do not change records.</div>}
       <div className={`app-stage ${showcase ? "app-stage-showcase" : "app-stage-workspace"}`}>{children}</div>
       <footer className={`border-t ${dark ? "border-white/10 bg-[#061222] text-slate-400" : "border-[#102643]/10 bg-white/45 text-slate-500"}`}>
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-5 text-xs leading-relaxed sm:flex-row sm:items-center sm:justify-between sm:px-8">

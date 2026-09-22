@@ -1,6 +1,6 @@
 # Hosting FIR Saathi on a Raspberry Pi 5
 
-This guide deploys the **existing FIR Saathi Express/React application** on a Raspberry Pi 5 with 8 GB RAM. The Pi runs the website and its server-side API only. **Supabase remains the database, authentication, and encrypted-evidence storage provider; Groq remains the drafting and transcription provider.** No PostgreSQL, MySQL, Docker, local AI model, Caddy, public IP, router port-forwarding, or inbound web port is required.
+This guide deploys the **existing FIR Saathi Express/React application** on a Raspberry Pi 5 with 8 GB RAM. The Pi runs the website and its server-side API only. **Supabase remains the database, authentication, and optional private-evidence storage provider; this prototype records voice-evidence metadata and a SHA-256 fingerprint but does not retain raw voice bytes. Groq remains the hosted drafting and transcription provider.** No PostgreSQL, MySQL, Docker, local AI model, Caddy, public IP, router port-forwarding, or inbound web port is required.
 
 > **Prototype boundary.** FIR Saathi is a demonstration workflow. Do not use this deployment to receive real emergency reports, legal complaints, or sensitive evidence unless its security, privacy, retention, accessibility, and legal controls have been independently reviewed.
 

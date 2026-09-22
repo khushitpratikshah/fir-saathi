@@ -14,6 +14,10 @@
 
 > **FIR Saathi is a demonstration prototype—not an official police portal, emergency service, FIR-registration system, legal-advice engine, or automated decision-maker.** Do not use it for real or urgent complaints.
 
+## Inspiration: what “FIR” means
+
+An **FIR (First Information Report)** is the formal record a police station may register when it receives information about a cognizable offence under applicable law. FIR Saathi does **not** register an FIR. It is an intake and review prototype that preserves a citizen’s account, helps structure source-supported details, and leaves every consequential decision to an authorised human officer.
+
 <div align="center">
 
 ![FIR Saathi evidence board](docs/assets/evidence-board.png)
@@ -67,7 +71,7 @@ FIR Saathi is not just a landing-page concept. The repository contains a complet
 | **Bounded legal aid** | A small catalogue of non-authoritative BNS review cards requires exact source quotes and falls back to `REVIEW` when evidence is insufficient. |
 | **Reviewer translation aid** | English translation and back-translation are separate, session-only, constable-only aids; neither replaces the original source. |
 | **Private citizen access** | The public `FS-…` reference is not enough to open a record. A separate `FSC-…` capability is required and only its hash is persisted. |
-| **Portable runtime** | React and Express run on a Raspberry Pi; Supabase provides data/auth/storage and Groq provides drafting/transcription. |
+| **Portable runtime** | React and Express run on a Raspberry Pi; Supabase provides data/auth/storage and the hosted Groq API provides optional drafting/transcription. This prototype therefore has an active hosted-AI dependency for those features; it is not a local-AI-only deployment. |
 
 ## Evidence, not marketing theatre
 
@@ -130,14 +134,14 @@ The key boundary is visible in the data model: the source statement, source-back
 
 ## Self-hosted stack
 
-The deployed application is portable. The Raspberry Pi runs the React build and Express/tRPC server, while hosted services remain replaceable infrastructure for the database, authentication, private evidence storage, and AI provider calls.
+The deployed application is portable. The Raspberry Pi runs the React build and Express/tRPC server, while hosted services remain replaceable infrastructure for the database, authentication, private evidence storage, and AI provider calls. The drafting and transcription path currently depends on the hosted Groq API; no local model is bundled.
 
 | Layer | Technology | Responsibility |
 |---|---|---|
 | Front end | React 19, TypeScript, Tailwind CSS 4, Wouter, GSAP | Citizen intake, review surfaces, accessibility, and responsive presentation |
 | API | Express 4 and tRPC 11 | Typed procedures, validation, authorization, and provider orchestration |
-| Data/auth/storage | Supabase PostgreSQL, Auth, Storage, and RLS | Complaint records, roles, audit events, and private evidence objects |
-| AI provider | Groq | Server-side drafting and Whisper transcription |
+| Data/auth/storage | Supabase PostgreSQL, Auth, Storage, and RLS | Complaint records, roles, audit events, and private evidence metadata/objects; raw voice bytes are not retained after transcription |
+| Hosted AI provider | Groq API | Server-side drafting and Whisper transcription; this is an active external dependency for AI-assisted features |
 | Deployment | Raspberry Pi 5, Node 22, pnpm, systemd, Cloudflare Tunnel | Self-hosted production process and HTTPS ingress |
 
 ## Run locally
@@ -162,6 +166,12 @@ pnpm install
 pnpm dev
 ```
 
+Run the automated test suite with:
+
+```bash
+NODE_ENV=test pnpm test
+```
+
 For a production build, use `pnpm build` followed by `pnpm start`. The browser receives only the public Supabase URL and publishable key; the Supabase service-role key and Groq key stay server-side.[4]
 
 ## Evaluator fast path: synthetic reviewer account
@@ -175,7 +185,7 @@ The live deployment includes a **synthetic, constable-only demo account** and on
 | Sample case | [`FS-DEMO1KYC`](https://fir.khushit.com/officer/FS-DEMO1KYC) |
 | Sample citizen key | `FSC-4EAE19860BAFE381477347A01A5D6FE410D3DD68` |
 
-The sample case contains fictional English text about a phone snatching, is marked `ready_for_review`, and includes source-linked structured fields plus a short audit trail. The `FSC-…` key is included only to demonstrate the separate citizen-capability path; it is not needed to open the case from the constable workspace. These credentials are intentionally synthetic and restricted to the demo environment. Do not reuse them for production data, personal accounts, or real complaints.
+The sample case contains fictional English text about a phone snatching, is marked `ready_for_review`, and includes source-linked structured fields plus a short audit trail. The demo reviewer is intentionally **read-only and case-scoped**: it can see only `FS-DEMO1KYC`, and review actions are simulated without changing the sample or any other record. The `FSC-…` key is included only to demonstrate the separate citizen-capability path; it is not needed to open the case from the constable workspace. These credentials are intentionally synthetic and restricted to the demo environment. Do not reuse them for production data, personal accounts, or real complaints.
 
 ## Raspberry Pi deployment
 

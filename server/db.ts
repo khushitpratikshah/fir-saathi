@@ -216,9 +216,10 @@ async function saveCitizenContext(complaintId: string, context: CitizenContext, 
   return entries.length;
 }
 
-export async function listComplaints() {
+export async function listComplaints(publicId?: string) {
   await ensureBnsReferences();
-  const rows = await supabaseRequest<SupabaseComplaint[]>(`fir_saathi_complaints?select=${complaintColumns}&order=updated_at.desc`);
+  const filter = publicId ? `&public_id=eq.${encodeURIComponent(publicId)}` : "";
+  const rows = await supabaseRequest<SupabaseComplaint[]>(`fir_saathi_complaints?select=${complaintColumns}${filter}&order=updated_at.desc`);
   return rows.map((row) => mapComplaint(row, true));
 }
 
