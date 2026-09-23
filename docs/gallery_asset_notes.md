@@ -1,6 +1,6 @@
 # Gallery asset notes
 
-- `docs/assets/evidence-board.png`: 1200x760 PNG, 133 KB. Strong hero/evidence board; near the requested 3:2 ratio and under 5 MB.
+- `docs/assets/evidence-board.png`: 1200x800 PNG, under 5 MB. Strong hero/evidence board at the requested 3:2 ratio.
 - `docs/assets/intake-language-picker.webp`: 893x768 WebP, 389 KB. Strong real intake UI screenshot showing language choices and Experimental badges, but WebP is outside the requested JPG/PNG/GIF formats. Convert to PNG for the gallery.
 - `/home/ubuntu/screenshots/127_0_0_1_2026-08-26_05-52-57_8869.webp`: blank white capture; exclude.
 
@@ -8,4 +8,4 @@ The current README already embeds the evidence board and language-picker screens
 
 ## Visual QA
 
-Both prepared gallery assets render correctly at 1200x800, an exact 3:2 ratio, and remain comfortably under the 5 MB limit. The evidence board is legible and leads with the ~80% officer-reported claim, source preservation, transcription status, and AI boundary. The intake screenshot is a real app view with readable language cards and Experimental badges. No blank or placeholder capture is included in the gallery.
+Both prepared gallery assets render correctly at 1200x800, an exact 3:2 ratio, and remain comfortably under the 5 MB limit. The evidence board is legible and leads with the transparent planning estimate, source preservation, transcription status, and AI boundary. The intake screenshot is a real app view with readable language cards and Experimental badges. No blank or placeholder capture is included in the gallery.

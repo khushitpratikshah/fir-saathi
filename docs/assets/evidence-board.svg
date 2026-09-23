@@ -53,11 +53,11 @@
 
       <g transform="translate(24,26)">
         <text class="label" fill="#a83d10">CONSTABLE TIME</text>
-        <text y="47" fill="#102643" font-size="30" font-weight="900">~80%</text>
-        <text y="80" fill="#102643" font-size="30" font-weight="900">work saved</text>
-        <text y="112" fill="#526273" font-size="14">Officer-reported claim for</text>
-        <text y="132" fill="#526273" font-size="14">intake and structuring</text>
-        <text y="152" fill="#526273" font-size="14">effort.</text>
+        <text y="47" fill="#102643" font-size="30" font-weight="900">5–10 min</text>
+        <text y="80" fill="#102643" font-size="30" font-weight="900">planning model</text>
+        <text y="112" fill="#526273" font-size="14">Per eligible intake</text>
+        <text y="132" fill="#526273" font-size="14">from an external baseline</text>
+        <text y="152" fill="#526273" font-size="14">not a field result.</text>
       </g>
       <g transform="translate(299,26)">
         <text class="label" fill="#a83d10">SOURCE FIRST</text>

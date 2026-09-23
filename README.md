@@ -4,7 +4,7 @@
 
 ### The source-preserving intake layer for multilingual public-service review
 
-**Citizens keep their own words. Constables get a clearer review surface. AI assists with structure and uncertainty—people retain authority.**
+**Citizens keep their own words. Constables get a clearer review surface. AI assists with structure and uncertainty; people retain authority.**
 
 [![Deploy to Raspberry Pi](https://github.com/khushitpratikshah/fir-saathi/actions/workflows/deploy-raspberry-pi.yml/badge.svg)](https://github.com/khushitpratikshah/fir-saathi/actions/workflows/deploy-raspberry-pi.yml)
 [![Prototype](https://img.shields.io/badge/status-prototype-f48a51?labelColor=102643)](#scope-and-boundaries)
@@ -12,7 +12,7 @@
 
 </div>
 
-> **FIR Saathi is a demonstration prototype—not an official police portal, emergency service, FIR-registration system, legal-advice engine, or automated decision-maker.** Do not use it for real or urgent complaints.
+> **FIR Saathi is a demonstration prototype, not an official police portal, emergency service, FIR-registration system, legal-advice engine, or automated decision-maker.** Do not use it for real or urgent complaints.
 
 ## Inspiration: what “FIR” means
 
@@ -52,11 +52,11 @@ Here are the four questions a serious evaluator should ask. The numbers below di
 
 | Question | What we can defend today | Status |
 |---|---|---|
-| **How much time does FIR Saathi save a constable?** | An **officer-reported claim says roughly 80% of the intake-and-structuring work can be saved**. This is an attributed claim, not an independently measured FIR Saathi result; the README keeps the underlying study and conservative planning model below for context. | **Officer-reported claim; independently unverified** |
+| **How much time does FIR Saathi save a constable?** | A transparent **5–10 minute per eligible intake planning estimate** is shown below. It is a bounded hypothesis based on an external report-writing baseline, not a measured FIR Saathi result. | **Planning estimate; not measured** |
 | **How well does transcription work by language?** | English, Hindi, and Gujarati have been personally tested qualitatively. Marathi, Bengali, Tamil, Telugu, Kannada, Malayalam, and Punjabi are available but marked **Experimental**. No model-matched WER claim is published. | **Language evidence in progress** |
 | **How often does AI attempt unsupported information, and how often is it caught?** | In the recorded ten-fixture hostile run, 4 responses were parseable; 2 of those attempted unsafe non-`REVIEW` BNS output, and the deterministic normaliser mitigated both. That leaves **0 unmitigated evaluated responses**. Six malformed responses are not counted as blocked. | **Observed snapshot, not a benchmark** |
 
-> **Why show both figures?** The roughly 80% number is an officer-reported claim about intake-and-structuring effort. The 5–10 minute range below is a separate, conservative planning model based on an external report-writing baseline. Neither is a measured FIR Saathi impact result; both should be tested in a local pilot.
+> **Why show the estimate?** The 5–10 minute range is a conservative planning model based on an external report-writing baseline. It is not a measured FIR Saathi impact result and should be tested in a local pilot.
 
 ## What is already working
 
@@ -176,7 +176,7 @@ For a production build, use `pnpm build` followed by `pnpm start`. The browser r
 
 ## Evaluator fast path: synthetic reviewer account
 
-The live deployment includes a **synthetic, constable-only demo account** and one harmless fictional case so evaluators can open the human-review workspace without creating an account or submitting a real complaint. Use the reviewer entry point at [`https://fir.khushit.com/officer`](https://fir.khushit.com/officer):
+The live deployment includes a **synthetic, constable-only demo account** and one harmless fictional case so evaluators can open the human-review workspace without creating an account or submitting a real complaint. Use the reviewer entry point at [`https://fir.khushit.com/officer`](https://fir.khushit.com/officer). The same deployment is also reachable at [`https://firsaathi.me`](https://firsaathi.me):
 
 | Demo access | Value |
 |---|---|
@@ -201,13 +201,13 @@ All ordinary application actions preserve a separation between original source, 
 
 ## Scope and boundaries
 
-FIR Saathi is designed for demonstration, evaluation, and controlled self-hosting. It does not provide emergency dispatch, official FIR registration, legal advice, formal records-retention guarantees, biometric identity verification, production-scale abuse prevention, or a validated multilingual transcription benchmark. The right next step is a controlled evaluation with synthetic scenarios and independently reference-checked audio—not a stronger marketing claim.
+FIR Saathi is designed for demonstration, evaluation, and controlled self-hosting. It does not provide emergency dispatch, official FIR registration, legal advice, formal records-retention guarantees, biometric identity verification, production-scale abuse prevention, or a validated multilingual transcription benchmark. The right next step is a controlled evaluation with synthetic scenarios and independently reference-checked audio - not a stronger marketing claim.
 
 ## Missing-information reduction: keep the question, measure it at the end
 
 FIR Saathi’s mechanism is implemented: it checks fixed high-value categories, avoids asking a question when the source or separate citizen context already covers it, and stores context separately rather than silently enriching the citizen’s statement. The reduction in missing-detail rate has **not** yet been measured against a baseline, so this belongs at the end of the README rather than in the hero pitch.
 
-A credible pilot should independently code matched synthetic scenarios in two conditions—baseline intake and FIR Saathi—and report detail coverage, clarification loops, source-fidelity errors, and citizen burden. This section is intentionally last because it is a measurement question, not a headline claim.
+A credible pilot should independently code matched synthetic scenarios in two conditions - baseline intake and FIR Saathi - and report detail coverage, clarification loops, source-fidelity errors, and citizen burden. This section is intentionally last because it is a measurement question, not a headline claim.
 
 | Proposed pilot metric | Definition |
 |---|---|
