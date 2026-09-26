@@ -39,4 +39,12 @@ describe("judge fast-path scenarios", () => {
       parts.filter(part => part.highlighted).map(part => part.text)
     ).toEqual(["red bag"]);
   });
+
+  it("matches canonically equivalent Unicode while preserving the original source text", () => {
+    const source = "कल शाम क़िला के बाहर";
+    const decomposedQuote = "क़िला";
+    expect(source.includes(decomposedQuote)).toBe(false);
+    expect(buildVerifierTrace(source, [{ label: "Place", value: decomposedQuote }]).matched).toHaveLength(1);
+    expect(highlightSource(source, [decomposedQuote]).filter(part => part.highlighted).map(part => part.text)).toEqual(["क़िला"]);
+  });
 });

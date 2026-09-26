@@ -74,7 +74,7 @@ export function getJudgeScenario(id: JudgeScenario["id"]) {
 }
 
 export function exactQuoteMatchesSource(source: string, quote: string) {
-  return Boolean(quote) && source.includes(quote);
+  return Boolean(quote) && source.normalize("NFKC").includes(quote.normalize("NFKC"));
 }
 
 export function buildVerifierTrace(
@@ -91,13 +91,35 @@ export function buildVerifierTrace(
 }
 
 export function highlightSource(source: string, quotes: string[]) {
+  const normalizedSource = source.normalize("NFKC");
+  const originalBoundaries = Array.from(source).reduce<number[]>(
+    (boundaries, character, index) => {
+      const previous = boundaries[boundaries.length - 1] ?? 0;
+      boundaries.push(previous + character.length);
+      return boundaries;
+    },
+    [0],
+  );
+  const normalizedPrefixLengths = originalBoundaries.map((boundary) =>
+    source.slice(0, boundary).normalize("NFC").length,
+  );
+  const toOriginalBoundary = (normalizedIndex: number) => {
+    const exact = normalizedPrefixLengths.indexOf(normalizedIndex);
+    return exact >= 0 ? originalBoundaries[exact] : undefined;
+  };
   const matches = quotes
     .filter(quote => exactQuoteMatchesSource(source, quote))
-    .map(quote => ({
-      quote,
-      start: source.indexOf(quote),
-      end: source.indexOf(quote) + quote.length,
-    }))
+    .map(quote => {
+      const normalizedQuote = quote.normalize("NFKC");
+      const normalizedStart = normalizedSource.indexOf(normalizedQuote);
+      const normalizedEnd = normalizedStart + normalizedQuote.length;
+      const start = toOriginalBoundary(normalizedStart);
+      const end = toOriginalBoundary(normalizedEnd);
+      return start === undefined || end === undefined
+        ? null
+        : { quote, start, end };
+    })
+    .filter((match): match is { quote: string; start: number; end: number } => match !== null)
     .sort((a, b) => a.start - b.start || b.end - a.end);
   const nonOverlapping = matches.filter(
     (match, index) => index === 0 || match.start >= matches[index - 1].end
